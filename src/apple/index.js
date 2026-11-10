@@ -276,11 +276,17 @@ function createApple({ db, svc, secret, config, push }) {
 /** Lee la configuración desde variables de entorno; null si Apple no está configurado. */
 function configFromEnv(env = process.env) {
   if (!env.APPLE_PASS_TYPE_ID) return null;
-  const need = ['APPLE_TEAM_ID', 'APPLE_CERT_PATH', 'APPLE_KEY_PATH', 'APPLE_WWDR_PATH', 'PUBLIC_URL'];
+  // Railway define RAILWAY_PUBLIC_DOMAIN cuando el servicio tiene dirección pública.
+  const publicUrl = env.PUBLIC_URL || (env.RAILWAY_PUBLIC_DOMAIN ? `https://${env.RAILWAY_PUBLIC_DOMAIN}` : '');
+  const need = ['APPLE_TEAM_ID', 'APPLE_CERT_PATH', 'APPLE_KEY_PATH', 'APPLE_WWDR_PATH'];
   const missing = need.filter((k) => !env[k]);
-  if (missing.length) throw new Error(`Apple Wallet: faltan variables ${missing.join(', ')}`);
+  if (!publicUrl) missing.push('PUBLIC_URL');
+  if (missing.length) {
+    console.warn(`Apple Wallet desactivado: faltan ${missing.join(', ')}.`);
+    return null;
+  }
   return {
-    passTypeId: env.APPLE_PASS_TYPE_ID, teamId: env.APPLE_TEAM_ID, publicUrl: env.PUBLIC_URL,
+    passTypeId: env.APPLE_PASS_TYPE_ID, teamId: env.APPLE_TEAM_ID, publicUrl,
     certPath: env.APPLE_CERT_PATH, keyPath: env.APPLE_KEY_PATH, wwdrPath: env.APPLE_WWDR_PATH,
     keyPassword: env.APPLE_KEY_PASSWORD,
   };

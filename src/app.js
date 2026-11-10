@@ -13,6 +13,7 @@ function createApp(svc, { apple } = {}) {
 
   // Páginas del cliente y de caja
   app.get('/r/:slug', (req, res) => res.type('html').send(pages.registro(svc.getBusiness(req.params.slug), !!apple)));
+  app.get('/admin/:slug', (req, res) => res.type('html').send(pages.admin(svc.getBusiness(req.params.slug))));
   app.get('/caja/:slug', (req, res) => res.type('html').send(pages.caja(svc.getBusiness(req.params.slug))));
 
   app.get('/health', (_req, res) => res.json({ ok: true }));
@@ -78,6 +79,13 @@ function createApp(svc, { apple } = {}) {
       const buf = await apple.buildPass(req.biz, c.id);
       res.set({ 'content-type': 'application/vnd.apple.pkpass', 'content-disposition': 'attachment; filename="tarjeta.pkpass"' }).send(buf);
     } catch (e) { next(e); }
+  });
+
+  // Logo público del negocio (assets/logos/<slug>.png), usado por el panel
+  r.get('/logo.png', (req, res, next) => {
+    const file = require('path').join(__dirname, '..', 'assets', 'logos', `${req.biz.slug}.png`);
+    if (!/^[a-z0-9-]+$/.test(req.biz.slug) || !require('fs').existsSync(file)) return next(new HttpError(404, 'no_logo', 'Sin logo.'));
+    res.set('cache-control', 'public, max-age=3600').type('png').sendFile(file);
   });
 
   // Caja (staff o admin)

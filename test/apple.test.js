@@ -167,3 +167,17 @@ test('páginas de registro y caja responden', async () => {
     assert.equal(r.status, 404);
   } finally { s.server.close(); }
 });
+
+test('panel de admin y logo público', async () => {
+  const s = await setup();
+  try {
+    let r = await fetch(`${s.url}/admin/undercut`);
+    assert.equal(r.status, 200);
+    const html = await r.text();
+    assert.match(html, /Panel del negocio/);
+    assert.doesNotMatch(html, /__NAME__|__SLUG__/);
+    r = await fetch(`${s.url}/api/undercut/logo.png`);
+    assert.equal(r.status, 200);
+    assert.equal(r.headers.get('content-type'), 'image/png');
+  } finally { s.server.close(); }
+});

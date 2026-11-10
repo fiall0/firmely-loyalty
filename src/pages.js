@@ -53,4 +53,9 @@ $('s').onclick=()=>go('scan');$('r').onclick=()=>go('redeem');`;
   return shell(`${b.name} · Caja`, body, script);
 }
 
-module.exports = { registro, caja };
+const fs = require('fs');
+const path = require('path');
+const adminTpl = fs.readFileSync(path.join(__dirname, 'admin.html'), 'utf8');
+const admin = (b) => adminTpl.replace(/__NAME__/g, esc(b.name)).replace(/__SLUG__/g, esc(b.slug));
+
+module.exports = { registro, caja, admin };

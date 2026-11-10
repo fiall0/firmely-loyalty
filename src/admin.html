@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Panel · __NAME__</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Montserrat:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:dark}*{box-sizing:border-box}
+body{margin:0;background:#000;color:#fff;font-family:'DM Sans',system-ui,sans-serif;padding:32px 40px 48px}
+@media(max-width:640px){body{padding:20px 14px 40px}}
+button,input{font-family:inherit}[hidden]{display:none!important}
+.wrap{max-width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:28px}
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px}
+.brand{display:flex;align-items:center;gap:14px}
+.logo{width:56px;height:56px;border-radius:50%;overflow:hidden;background:#000;flex:none;border:1px solid rgba(255,255,255,.3)}
+.logo img{display:block;width:100%;height:100%;object-fit:cover}
+h1{margin:0;font-family:Montserrat,sans-serif;font-weight:800;font-size:26px;letter-spacing:.14em;line-height:1.1;text-transform:uppercase}
+.muted{color:#B5B5BA}.small{font-size:12px;color:#A1A1A6;line-height:1.45}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+.card{background:#141414;border:1px solid rgba(255,255,255,.14);border-radius:20px;padding:22px;display:flex;flex-direction:column;gap:16px}
+.kpi{border-radius:18px;padding:20px;gap:6px}.kpi span:first-child{font-size:14px;color:#B5B5BA}
+.kpi b{font-family:Montserrat,sans-serif;font-weight:800;font-size:38px;line-height:1.1}
+.cols{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start}
+.main{flex:999 1 560px;min-width:0}.side{flex:1 1 340px;min-width:0;display:flex;flex-direction:column;gap:20px}
+h2{margin:0;font-size:18px}
+.head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px}
+input[type=text],input[type=tel],input[type=password]{width:100%;height:46px;border-radius:12px;border:1px solid rgba(255,255,255,.25);background:#000;color:#fff;padding:0 14px;font-size:15px}
+.search{flex:1 1 240px;max-width:340px}
+.tbl{overflow-x:auto}.row{display:grid;grid-template-columns:1.6fr 1.3fr 1fr 1fr 1.3fr;gap:12px;min-width:640px;padding:14px 8px;font-size:15px;align-items:center;text-align:left;width:100%;border:0;border-bottom:1px solid rgba(255,255,255,.08);background:transparent;color:#fff;cursor:pointer}
+.row.th{padding:10px 8px;font-size:13px;color:#B5B5BA;border-bottom:1px solid rgba(255,255,255,.14);cursor:default}
+.row.sel{background:rgba(255,255,255,.1)}.row b{font-weight:700}
+.field{display:flex;flex-direction:column;gap:8px}.field label,.field>span{font-size:13px;color:#B5B5BA}
+.stepper{display:flex;align-items:center;gap:14px}
+.sq{width:44px;height:44px;border-radius:12px;border:1px solid rgba(255,255,255,.3);background:#000;color:#fff;font-size:22px;cursor:pointer}
+.num{font-family:Montserrat,sans-serif;font-weight:800;font-size:22px;min-width:84px;text-align:center}
+.btn{height:50px;border-radius:14px;border:0;background:#fff;color:#000;font-weight:700;font-size:15px;cursor:pointer}
+.btn:disabled{opacity:.5;cursor:default}
+.danger{height:46px;border-radius:12px;border:1.5px solid #FF8A80;background:transparent;color:#FF8A80;font-weight:700;font-size:15px;cursor:pointer}
+.confirm{border:1.5px solid #FF8A80;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:12px;font-size:14px;line-height:1.45}
+.confirm div{display:flex;gap:10px}.confirm button{flex:1;height:44px;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer}
+.ok{background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.5);border-radius:12px;padding:12px 14px;font-size:14px;color:#4ADE80;line-height:1.4}
+.bad{background:rgba(255,138,128,.12);border:1px solid rgba(255,138,128,.5);border-radius:12px;padding:12px 14px;font-size:14px;color:#FF8A80;line-height:1.4}
+.aud{display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:48px;padding:0 14px;border-radius:12px;border:1.5px solid rgba(255,255,255,.25);background:transparent;color:#fff;font-size:14px;text-align:left;cursor:pointer}
+.aud.on{border-color:#fff;background:rgba(255,255,255,.12)}
+.prev{background:rgba(50,50,54,.86);border-radius:18px;padding:12px 14px;display:flex;gap:10px;align-items:flex-start}
+.prev .logo{width:34px;height:34px;border-radius:9px}
+.rule{display:flex;justify-content:space-between;font-size:15px}.rule b{font-weight:700}
+.hist{display:flex;flex-direction:column;gap:6px;font-size:13px;color:#B5B5BA}
+.login{max-width:380px;margin:12vh auto 0;display:flex;flex-direction:column;gap:16px}
+</style>
+</head>
+<body>
+<div class="login" id="login">
+  <h1>__NAME__</h1>
+  <span class="muted">Panel del negocio. Ingresa tu llave de administrador.</span>
+  <input id="key" type="password" autocomplete="off" placeholder="Llave de administrador">
+  <button class="btn" id="enter">Entrar</button>
+  <div class="bad" id="loginErr" hidden></div>
+</div>
+
+<div class="wrap" id="app" hidden>
+  <div class="top">
+    <div class="brand">
+      <div class="logo" id="logoBox"><img id="logoImg" src="/api/__SLUG__/logo.png" alt="Logo de __NAME__" onerror="this.parentNode.hidden=true"></div>
+      <div><h1>__NAME__</h1><span class="muted" style="font-size:14px">Programa de fidelidad</span></div>
+    </div>
+    <button class="sq" id="logout" style="width:auto;padding:0 16px;font-size:14px">Salir</button>
+  </div>
+
+  <div class="kpis">
+    <div class="card kpi"><span>Clientes registrados</span><b id="kCustomers">–</b></div>
+    <div class="card kpi"><span>Visitas esta semana</span><b id="kVisits">–</b></div>
+    <div class="card kpi"><span>Cortes gratis canjeados</span><b id="kRewards">–</b></div>
+  </div>
+
+  <div class="cols">
+    <div class="card main">
+      <div class="head"><h2>Clientes</h2>
+        <div class="search"><input id="q" type="text" placeholder="Buscar por nombre o teléfono" aria-label="Buscar cliente por nombre o teléfono"></div>
+      </div>
+      <div class="tbl"><div id="rows"></div></div>
+      <div class="muted" id="empty" hidden style="padding:8px">No se encontró ningún cliente con esa búsqueda.</div>
+    </div>
+
+    <div class="side">
+      <div class="card" id="editCard" hidden>
+        <h2>Editar cliente</h2>
+        <div class="field"><label for="eName">Nombre</label><input id="eName" type="text"></div>
+        <div class="field"><label for="ePhone">Teléfono</label><input id="ePhone" type="tel"></div>
+        <div class="field"><span>Visitas de este ciclo</span>
+          <div class="stepper"><button class="sq" id="minus" aria-label="Restar una visita">−</button><span class="num" id="eVisits"></span><button class="sq" id="plus" aria-label="Sumar una visita">+</button></div>
+        </div>
+        <button class="danger" id="askReset">Reiniciar visitas a 0</button>
+        <div class="confirm" id="confirm" hidden>
+          <span>¿Reiniciar las visitas de <b id="cName"></b> a 0? Los sellos de su pase se vacían.</span>
+          <div><button id="doReset" style="border:0;background:#FF8A80;color:#000">Sí, reiniciar</button><button id="noReset" style="border:1px solid rgba(255,255,255,.3);background:transparent;color:#fff">Cancelar</button></div>
+        </div>
+        <button class="btn" id="save" style="height:52px;font-size:16px">Guardar cambios</button>
+        <div class="ok" id="eOk" hidden></div><div class="bad" id="eErr" hidden></div>
+        <span class="small">El pase del cliente se actualiza solo. Cada cambio queda en el historial con fecha y usuario.</span>
+        <div class="hist" id="hist"></div>
+      </div>
+
+      <div class="card">
+        <h2>Enviar aviso</h2>
+        <span class="muted" style="font-size:13px;line-height:1.45">Aparece como notificación en la pantalla de bloqueo de quienes tienen el pase en Wallet.</span>
+        <div class="field"><span>Audiencia</span><div id="auds" style="display:flex;flex-direction:column;gap:8px"></div></div>
+        <div class="field"><label for="msg">Mensaje (máx. 80 caracteres)</label><input id="msg" type="text" maxlength="80" placeholder="Ej: Este sábado, 2x1 en cortes. Te esperamos."></div>
+        <div class="prev"><div class="logo"><img src="/api/__SLUG__/logo.png" alt="" onerror="this.parentNode.hidden=true"></div>
+          <div style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-weight:700;font-size:13px">__NAME__ <span style="font-weight:400;color:rgba(255,255,255,.7)">· ahora</span></span><span style="font-size:13px;line-height:1.35;word-break:break-word" id="prevMsg"></span></div></div>
+        <button class="btn" id="send">Enviar aviso</button>
+        <div class="ok" id="nOk" hidden></div><div class="bad" id="nErr" hidden></div>
+        <span class="small">Máximo <span id="maxN">2</span> avisos al mes por cliente. Quien apague las notificaciones de su pase no los recibe. Un aviso nuevo reemplaza al anterior.</span>
+      </div>
+
+      <div class="card">
+        <h2>Reglas del programa</h2>
+        <div class="rule"><span class="muted">Recompensa</span><b id="rReward"></b></div>
+        <div class="rule"><span class="muted">Visitas para el premio</span><b id="rVisits"></b></div>
+        <div class="rule"><span class="muted">Sello de la tarjeta</span>
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Tijeras"><circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/></svg></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SLUG = "__SLUG__";
+const $ = (id) => document.getElementById(id);
+let KEY = '', info = null, list = [], sel = null, draft = null, aud = 0, counts = [null, null, null];
+const AUDS = [['all', 'Todos los clientes'], ['inactive', 'Sin venir hace 5 semanas o más'], ['near_reward', 'A 1-2 visitas del premio']];
+
+async function api(path, opts = {}) {
+  const r = await fetch('/api/' + SLUG + path, { ...opts, headers: { 'content-type': 'application/json', 'x-api-key': KEY, 'x-actor': 'admin', ...(opts.headers || {}) } });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(j.message || 'Error'); e.status = r.status; throw e; }
+  return j;
+}
+const show = (el, text) => { el.textContent = text || ''; el.hidden = !text; };
+function ago(iso) {
+  if (!iso) return '—';
+  const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  return d <= 0 ? 'Hoy' : d === 1 ? 'Ayer' : 'Hace ' + d + ' días';
+}
+
+async function enter(key) {
+  KEY = key;
+  try {
+    info = await (await fetch('/api/' + SLUG + '/info')).json();
+    await loadStats();
+  } catch (e) {
+    show($('loginErr'), e.status === 401 ? 'Llave incorrecta.' : e.message);
+    sessionStorage.removeItem('adminKey'); return;
+  }
+  sessionStorage.setItem('adminKey', key);
+  $('login').hidden = true; $('app').hidden = false;
+  $('rReward').textContent = info.reward; $('rVisits').textContent = info.visitsRequired;
+  buildAuds(); await loadList(); refreshCounts();
+}
+
+async function loadStats() {
+  const s = await api('/stats');
+  $('kCustomers').textContent = s.customers; $('kVisits').textContent = s.visitsThisWeek; $('kRewards').textContent = s.rewardsRedeemed;
+}
+async function loadList() {
+  list = (await api('/customers?q=' + encodeURIComponent($('q').value.trim()))).customers;
+  const box = $('rows'); box.textContent = '';
+  const th = document.createElement('div'); th.className = 'row th';
+  ['Cliente', 'Teléfono', 'Visitas', 'Cortes gratis', 'Última visita'].forEach((t) => { const s = document.createElement('span'); s.textContent = t; th.appendChild(s); });
+  box.appendChild(th);
+  for (const c of list) {
+    const b = document.createElement('button'); b.className = 'row' + (sel === c.id ? ' sel' : '');
+    const cells = [c.name, c.phone, c.visits + ' de ' + c.required, String(c.rewardsRedeemed), ago(c.lastVisitAt)];
+    cells.forEach((t, i) => { const s = document.createElement(i === 0 ? 'b' : 'span'); s.textContent = t; if (i === 1 || i === 4) s.className = 'muted'; b.appendChild(s); });
+    b.onclick = () => pick(c.id); box.appendChild(b);
+  }
+  $('empty').hidden = list.length > 0;
+}
+async function pick(id) {
+  sel = id; const d = await api('/customers/' + id); const c = d.customer;
+  draft = { name: c.name, phone: c.phone, visits: c.visits };
+  $('editCard').hidden = false; $('confirm').hidden = true; $('askReset').hidden = false; show($('eOk')); show($('eErr'));
+  $('eName').value = draft.name; $('ePhone').value = draft.phone; $('eVisits').textContent = draft.visits + ' de ' + c.required; $('cName').textContent = c.name;
+  const h = $('hist'); h.textContent = '';
+  const L = { visit: 'Visita', redeem: 'Canje', edit: 'Edición', reset: 'Reinicio', register: 'Registro' };
+  d.events.slice(0, 5).forEach((e) => { const s = document.createElement('span'); s.textContent = new Date(e.created_at).toLocaleDateString('es-DO') + ' · ' + (L[e.kind] || e.kind) + (e.actor ? ' · ' + e.actor : ''); h.appendChild(s); });
+  Array.from($('rows').children).forEach((r, i) => r.classList.toggle('sel', i > 0 && list[i - 1].id === id));
+}
+function stepVisits(n) { const m = info.visitsRequired; draft.visits = Math.max(0, Math.min(m, draft.visits + n)); $('eVisits').textContent = draft.visits + ' de ' + m; show($('eOk')); }
+$('minus').onclick = () => stepVisits(-1); $('plus').onclick = () => stepVisits(1);
+$('save').onclick = async () => {
+  show($('eErr')); show($('eOk'));
+  try {
+    await api('/customers/' + sel, { method: 'PATCH', body: JSON.stringify({ name: $('eName').value, phone: $('ePhone').value, visits: draft.visits }) });
+    show($('eOk'), 'Cambios guardados. El pase del cliente se actualizará solo.');
+    await Promise.all([loadList(), loadStats()]); await pick(sel); show($('eOk'), 'Cambios guardados. El pase del cliente se actualizará solo.');
+  } catch (e) { show($('eErr'), e.message); }
+};
+$('askReset').onclick = () => { $('confirm').hidden = false; $('askReset').hidden = true; };
+$('noReset').onclick = () => { $('confirm').hidden = true; $('askReset').hidden = false; };
+$('doReset').onclick = async () => {
+  try { await api('/customers/' + sel + '/reset', { method: 'POST', body: '{}' }); await Promise.all([loadList(), loadStats()]); await pick(sel); show($('eOk'), 'Visitas reiniciadas a 0.'); }
+  catch (e) { show($('eErr'), e.message); }
+};
+
+function buildAuds() {
+  const box = $('auds'); box.textContent = '';
+  AUDS.forEach(([, label], i) => {
+    const b = document.createElement('button'); b.className = 'aud' + (aud === i ? ' on' : '');
+    const l = document.createElement('span'); l.textContent = label; const n = document.createElement('b'); n.textContent = counts[i] === null ? '…' : counts[i];
+    b.append(l, n); b.onclick = () => { aud = i; buildAuds(); updateSend(); show($('nOk')); show($('nErr')); }; box.appendChild(b);
+  });
+  updateSend();
+}
+async function refreshCounts() {
+  for (let i = 0; i < AUDS.length; i++) {
+    try { counts[i] = (await api('/notices', { method: 'POST', body: JSON.stringify({ audience: AUDS[i][0], dryRun: true }) })).sent; } catch { counts[i] = 0; }
+  }
+  buildAuds();
+}
+function updateSend() {
+  const n = counts[aud]; $('send').textContent = n === null ? 'Enviar aviso' : 'Enviar a ' + n + (n === 1 ? ' cliente' : ' clientes');
+  $('send').disabled = !$('msg').value.trim() || !n;
+  $('prevMsg').textContent = $('msg').value.trim() || 'Tu mensaje aparecerá aquí.';
+}
+$('msg').oninput = updateSend;
+$('send').onclick = async () => {
+  show($('nOk')); show($('nErr')); $('send').disabled = true;
+  try {
+    const r = await api('/notices', { method: 'POST', body: JSON.stringify({ audience: AUDS[aud][0], message: $('msg').value.trim() }) });
+    show($('nOk'), 'Aviso enviado a ' + r.sent + ' clientes.' + (r.skippedCapped ? ' ' + r.skippedCapped + ' no lo recibieron por el tope mensual.' : ''));
+    $('msg').value = ''; await refreshCounts();
+  } catch (e) { show($('nErr'), e.message); }
+  updateSend();
+};
+
+let t; $('q').oninput = () => { clearTimeout(t); t = setTimeout(loadList, 250); };
+$('enter').onclick = () => enter($('key').value.trim());
+$('key').onkeydown = (e) => { if (e.key === 'Enter') enter($('key').value.trim()); };
+$('logout').onclick = () => { sessionStorage.removeItem('adminKey'); location.reload(); };
+const saved = sessionStorage.getItem('adminKey'); if (saved) enter(saved);
+</script>
+</body>
+</html>

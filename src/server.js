@@ -4,6 +4,7 @@ const { open } = require('./db');
 const { createService } = require('./service');
 const { createApp } = require('./app');
 const { createApple, configFromEnv } = require('./apple');
+const { createGoogle, configFromEnv: googleConfig } = require('./google');
 
 // En la nube los certificados llegan como variables (base64) y se guardan en archivos temporales.
 (function materializeCerts() {
@@ -54,12 +55,21 @@ for (const item of (process.env.SEED_BUSINESSES || '').split(',').map((x) => x.t
     if (e.code !== 'slug_taken') throw e;
   }
 }
+const adapters = [];
 let apple = null;
 if (appleCfg) {
   apple = createApple({ db, svc, secret: codeSecret, config: appleCfg });
-  live.customerChanged = (p) => { hooks.customerChanged(p); apple.hooks.customerChanged(p); };
-  live.notice = (p) => { hooks.notice(p); apple.hooks.notice(p); };
+  adapters.push(apple.hooks);
   console.log('Apple Wallet activo.');
 }
+let google = null;
+const googleCfg = googleConfig();
+if (googleCfg) {
+  google = createGoogle({ db, svc, config: googleCfg });
+  adapters.push(google.hooks);
+  console.log('Google Wallet activo.');
+}
+live.customerChanged = (p) => { hooks.customerChanged(p); adapters.forEach((a) => a.customerChanged(p)); };
+live.notice = (p) => { hooks.notice(p); adapters.forEach((a) => a.notice(p)); };
 const port = Number(process.env.PORT || 3000);
-createApp(svc, { apple }).listen(port, () => console.log(`Fidelidad escuchando en :${port}`));
+createApp(svc, { apple, google }).listen(port, () => console.log(`Fidelidad escuchando en :${port}`));

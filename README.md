@@ -60,3 +60,12 @@ Requiere `openssl` instalado (firma el pase).
 - `/apple/v1/...`: servicio web que usa el iPhone (registro de dispositivo, lista de pases cambiados, descarga del pase actualizado, log).
 - Al sumar visita, editar, reiniciar o enviar un aviso, se manda un push a APNs y el iPhone baja el pase nuevo; la notificación sale porque los campos "Estado" y "Último aviso" tienen `changeMessage`.
 - No pongas nunca la llave privada (`pass-key.pem`) en el repositorio.
+
+## Etapa 4: Google Wallet (Android)
+
+Se activa con `GOOGLE_ISSUER_ID` (ID de emisor de Google Pay & Wallet Console) y `GOOGLE_SA_JSON` (contenido del JSON de la cuenta de servicio; también acepta `GOOGLE_SA_JSON_B64`). Requiere `PUBLIC_URL` o el dominio público de Railway.
+
+- `GET /api/:slug/google-wallet?code=<código del QR>`: redirige al enlace "Agregar a Google Wallet".
+- Cada negocio es una clase de lealtad (`<issuer>.<slug>`) y cada cliente un objeto (`<issuer>.<slug>-<id>`).
+- Al sumar visita, canjear o editar se actualiza el objeto; al sumar visita, canjear o enviar un aviso se manda un mensaje con notificación (`TEXT_AND_NOTIFY`).
+- Mientras el emisor esté en modo de prueba, solo pueden agregar el pase las cuentas de Google registradas como "Test users".

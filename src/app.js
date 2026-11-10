@@ -3,7 +3,7 @@ const { HttpError } = require('./service');
 const stamps = require('./stamps');
 const pages = require('./pages');
 
-function createApp(svc, { apple } = {}) {
+function createApp(svc, { apple, google } = {}) {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', 1); // detrás del proxy HTTPS de la nube, req.ip es la IP real
@@ -12,7 +12,7 @@ function createApp(svc, { apple } = {}) {
   if (apple) app.use('/apple', apple.router);
 
   // Páginas del cliente y de caja
-  app.get('/r/:slug', (req, res) => res.type('html').send(pages.registro(svc.getBusiness(req.params.slug), !!apple)));
+  app.get('/r/:slug', (req, res) => res.type('html').send(pages.registro(svc.getBusiness(req.params.slug), { apple: !!apple, google: !!google })));
   app.get('/admin/:slug', (req, res) => res.type('html').send(pages.admin(svc.getBusiness(req.params.slug))));
   app.get('/caja/:slug', (req, res) => res.type('html').send(pages.caja(svc.getBusiness(req.params.slug))));
 
@@ -82,11 +82,23 @@ function createApp(svc, { apple } = {}) {
     } catch (e) { next(e); }
   });
 
-  // Logo público del negocio (assets/logos/<slug>.png), usado por el panel
-  r.get('/logo.png', (req, res, next) => {
-    const file = require('path').join(__dirname, '..', 'assets', 'logos', `${req.biz.slug}.png`);
-    if (!/^[a-z0-9-]+$/.test(req.biz.slug) || !require('fs').existsSync(file)) return next(new HttpError(404, 'no_logo', 'Sin logo.'));
-    res.set('cache-control', 'public, max-age=3600').type('png').sendFile(file);
+  // Logo público del negocio (assets/logos/<slug>.png); si no hay, un ícono generado con sus colores.
+  r.get('/logo.png', async (req, res, next) => {
+    try {
+      const file = require('path').join(__dirname, '..', 'assets', 'logos', `${req.biz.slug}.png`);
+      res.set('cache-control', 'public, max-age=3600').type('png');
+      if (/^[a-z0-9-]+$/.test(req.biz.slug) && require('fs').existsSync(file)) return res.sendFile(file);
+      res.send(await stamps.icon(256, svc.brandOf(req.biz)));
+    } catch (e) { next(e); }
+  });
+
+  // Enlace "Agregar a Google Wallet": redirige al enlace firmado.
+  r.get('/google-wallet', async (req, res, next) => {
+    try {
+      if (!google) throw new HttpError(503, 'google_off', 'Google Wallet no está configurado.');
+      const c = svc.customerFromCode(req.biz, req.query.code);
+      res.redirect(302, await google.saveUrl(req.biz, c.id));
+    } catch (e) { next(e); }
   });
 
   // Caja (staff o admin)

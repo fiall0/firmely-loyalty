@@ -22,7 +22,7 @@ function shell(title, body, script) {
 <title>${esc(title)}</title><style>${STYLE}</style></head><body><main>${body}</main><script>${script}</script></body></html>`;
 }
 
-function registro(b, appleOn) {
+function registro(b, on) {
   const body = `<header class="hero">
 <div class="logo"><img src="/api/${esc(b.slug)}/logo.png" alt="Logo de ${esc(b.name)}" onerror="this.parentNode.hidden=true"></div>
 <h1>Tarjeta de fidelidad</h1>
@@ -33,7 +33,9 @@ function registro(b, appleOn) {
 <div class="check"><input id="c" type="checkbox"><span>Acepto que ${esc(b.name)} guarde mi nombre y teléfono para la tarjeta de fidelidad y me envíe avisos.</span></div>
 <button type="submit">Crear mi tarjeta</button><div class="err" id="e"></div></form>
 <div id="ok" hidden><p class="sub" style="text-align:center">¡Listo! Agrega tu tarjeta al teléfono:</p>
-${appleOn ? '<a class="btn" id="apple">Agregar a Apple Wallet</a>' : '<p class="sub" style="text-align:center">Apple Wallet no está disponible todavía.</p>'}
+${on.apple ? '<a class="btn" id="apple" hidden>Agregar a Apple Wallet</a>' : ''}
+${on.google ? '<a class="btn" id="google" hidden>Agregar a Google Wallet</a>' : ''}
+${on.apple || on.google ? '' : '<p class="sub" style="text-align:center">La billetera digital no está disponible todavía.</p>'}
 <p class="sub" style="margin-top:28px;text-align:center">Tu código (para la prueba en caja):</p><pre id="code"></pre>
 <a class="btn" id="caja" style="background:#222;color:#fff">Abrir caja con este código</a></div>`;
   const script = `
@@ -43,7 +45,10 @@ const r=await fetch('/api/'+slug+'/register',{method:'POST',headers:{'content-ty
 const j=await r.json();if(!r.ok){e.textContent=j.message||'Error';return}
 document.getElementById('f').hidden=true;document.querySelector('.hero p.sub').hidden=false;document.getElementById('ok').hidden=false;
 document.getElementById('code').textContent=j.code;document.getElementById('caja').href='/caja/'+slug+'?code='+encodeURIComponent(j.code);
-const a=document.getElementById('apple');if(a)a.href='/api/'+slug+'/pass.pkpass?code='+encodeURIComponent(j.code);});`;
+const ua=navigator.userAgent,ios=/iPhone|iPad|iPod/.test(ua)||(/Mac/.test(ua)&&navigator.maxTouchPoints>1),android=/Android/.test(ua);
+const a=document.getElementById('apple'),g=document.getElementById('google');
+if(a){a.href='/api/'+slug+'/pass.pkpass?code='+encodeURIComponent(j.code);a.hidden=android&&!!g}
+if(g){g.href='/api/'+slug+'/google-wallet?code='+encodeURIComponent(j.code);g.hidden=ios&&!!a}});`;
   return shell(`${b.name} · Tarjeta`, body, script);
 }
 

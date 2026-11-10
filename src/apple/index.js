@@ -9,6 +9,7 @@ const express = require('express');
 const { zipSync } = require('fflate');
 const sharp = require('sharp');
 const stamps = require('../stamps');
+const { statusText } = require('../text');
 const { HttpError } = require('../service');
 
 const sha1 = (buf) => crypto.createHash('sha1').update(buf).digest('hex');
@@ -70,12 +71,6 @@ function createApple({ db, svc, secret, config, push }) {
     return Number.isInteger(id) ? { slug: serial.slice(0, i), id } : null;
   };
   const tokenFor = (serial) => crypto.createHmac('sha256', secret).update(`apple.${serial}`).digest('hex');
-
-  function statusText(b, c) {
-    if (c.visits >= b.visits_required) return `¡Tienes tu ${b.reward.toLowerCase()} disponible!`;
-    if (c.visits === 0) return 'Tu tarjeta está en 0 visitas. ¡Te esperamos!';
-    return `Visita registrada: ${c.visits} de ${b.visits_required}. Te faltan ${b.visits_required - c.visits} para tu ${b.reward.toLowerCase()}.`;
-  }
 
   function captionText(b, c) {
     const rem = b.visits_required - c.visits;

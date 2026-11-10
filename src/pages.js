@@ -17,8 +17,9 @@ header.hero{text-align:center;margin:8px 0 28px}
 .hero p.sub{font-size:18px;color:#fff;margin:0}
 pre{background:#111;border:1px solid #333;border-radius:12px;padding:12px;white-space:pre-wrap;word-break:break-word;font-size:13px}`;
 
-function shell(title, body, script) {
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+function shell(title, body, script, slug) {
+  const icon = slug ? `<link rel="icon" type="image/png" href="/api/${esc(slug)}/logo.png"><link rel="apple-touch-icon" href="/api/${esc(slug)}/logo.png">` : '';
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${icon}
 <title>${esc(title)}</title><style>${STYLE}</style></head><body><main>${body}</main><script>${script}</script></body></html>`;
 }
 
@@ -49,7 +50,7 @@ const ua=navigator.userAgent,ios=/iPhone|iPad|iPod/.test(ua)||(/Mac/.test(ua)&&n
 const a=document.getElementById('apple'),g=document.getElementById('google');
 if(a){a.href='/api/'+slug+'/pass.pkpass?code='+encodeURIComponent(j.code);a.hidden=android&&!!g}
 if(g){g.href='/api/'+slug+'/google-wallet?code='+encodeURIComponent(j.code);g.hidden=ios&&!!a}});`;
-  return shell(`${b.name} · Tarjeta`, body, script);
+  return shell(`${b.name} · Tarjeta`, body, script, b.slug);
 }
 
 function caja(b) {
@@ -64,7 +65,7 @@ async function go(path){sessionStorage.setItem('k',$('k').value);$('e').textCont
 const r=await fetch('/api/'+slug+'/'+path,{method:'POST',headers:{'content-type':'application/json','x-api-key':$('k').value,'x-actor':'caja'},body:JSON.stringify({code:$('c').value.trim()})});
 const j=await r.json();$('o').hidden=false;$('o').textContent=JSON.stringify(j,null,2);}
 $('s').onclick=()=>go('scan');$('r').onclick=()=>go('redeem');`;
-  return shell(`${b.name} · Caja`, body, script);
+  return shell(`${b.name} · Caja`, body, script, b.slug);
 }
 
 const fs = require('fs');

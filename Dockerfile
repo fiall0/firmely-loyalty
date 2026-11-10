@@ -1,6 +1,6 @@
 FROM node:22-bookworm-slim
-# openssl: firma de los pases de Apple
-RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
+# openssl: firma de los pases de Apple. fontconfig + fuentes: texto dentro de las imágenes de sellos.
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates fontconfig fonts-liberation fonts-dejavu-core && fc-cache -f && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev

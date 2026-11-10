@@ -11,7 +11,7 @@
 body{margin:0;background:#000;color:#fff;font-family:'DM Sans',system-ui,sans-serif;padding:32px 40px 48px}
 @media(max-width:640px){body{padding:20px 14px 40px}}
 button,input{font-family:inherit}[hidden]{display:none!important}
-.wrap{max-width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:28px}
+.wrap{max-width:1440px;margin:0 auto;display:flex;flex-direction:column;gap:28px}
 .top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px}
 .brand{display:flex;align-items:center;gap:14px}
 .logo{width:56px;height:56px;border-radius:50%;overflow:hidden;background:#000;flex:none;border:1px solid rgba(255,255,255,.3)}
@@ -22,16 +22,19 @@ h1{margin:0;font-family:Montserrat,sans-serif;font-weight:800;font-size:26px;let
 .card{background:#141414;border:1px solid rgba(255,255,255,.14);border-radius:20px;padding:22px;display:flex;flex-direction:column;gap:16px}
 .kpi{border-radius:18px;padding:20px;gap:6px}.kpi span:first-child{font-size:14px;color:#B5B5BA}
 .kpi b{font-family:Montserrat,sans-serif;font-weight:800;font-size:38px;line-height:1.1}
-.cols{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start}
-.main{flex:999 1 560px;min-width:0}.side{flex:1 1 340px;min-width:0;display:flex;flex-direction:column;gap:20px}
+.cols{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(300px,1fr) minmax(300px,1fr);gap:20px;align-items:start}
+.col{display:flex;flex-direction:column;gap:20px;min-width:0}
+@media(max-width:1100px){.cols{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.cols>.main{grid-column:1/-1}}
+@media(max-width:700px){.cols{grid-template-columns:minmax(0,1fr)}}
 h2{margin:0;font-size:18px}
 .head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px}
 input[type=text],input[type=tel],input[type=password]{width:100%;height:46px;border-radius:12px;border:1px solid rgba(255,255,255,.25);background:#000;color:#fff;padding:0 14px;font-size:15px}
 .search{flex:1 1 240px;max-width:340px}
-.tbl{overflow-x:auto}.row{display:grid;grid-template-columns:1.6fr 1.3fr 1fr 1fr 1.3fr;gap:12px;min-width:640px;padding:14px 8px;font-size:15px;align-items:center;text-align:left;width:100%;border:0;border-bottom:1px solid rgba(255,255,255,.08);background:transparent;color:#fff;cursor:pointer}
-.row.th{padding:10px 8px;font-size:13px;color:#B5B5BA;border-bottom:1px solid rgba(255,255,255,.14);cursor:default}
+.tbl{overflow-x:auto}.row{display:grid;grid-template-columns:1.3fr 1.35fr .9fr .9fr 1.15fr;gap:8px;min-width:0;padding:14px 6px;font-size:14.5px;align-items:center;text-align:left;width:100%;border:0;border-bottom:1px solid rgba(255,255,255,.08);background:transparent;color:#fff;cursor:pointer}
+.row.th{padding:10px 6px;font-size:12.5px;color:#B5B5BA;border-bottom:1px solid rgba(255,255,255,.14);cursor:default}
 .row.sel{background:rgba(255,255,255,.1)}.row b{font-weight:700}
 .field{display:flex;flex-direction:column;gap:8px}.field label,.field>span{font-size:13px;color:#B5B5BA}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}.alt{height:46px;border-radius:12px;border:1px solid rgba(255,255,255,.3);background:#000;color:#fff;font-weight:700;font-size:14px;cursor:pointer}.alt:disabled{opacity:.4;cursor:default}
 .stepper{display:flex;align-items:center;gap:14px}
 .sq{width:44px;height:44px;border-radius:12px;border:1px solid rgba(255,255,255,.3);background:#000;color:#fff;font-size:22px;cursor:pointer}
 .num{font-family:Montserrat,sans-serif;font-weight:800;font-size:22px;min-width:84px;text-align:center}
@@ -84,25 +87,41 @@ input[type=text],input[type=tel],input[type=password]{width:100%;height:46px;bor
       <div class="muted" id="empty" hidden style="padding:8px">No se encontró ningún cliente con esa búsqueda.</div>
     </div>
 
-    <div class="side">
-      <div class="card" id="editCard" hidden>
+    <div class="col">
+      <div class="card" id="editCard">
         <h2>Editar cliente</h2>
-        <div class="field"><label for="eName">Nombre</label><input id="eName" type="text"></div>
-        <div class="field"><label for="ePhone">Teléfono</label><input id="ePhone" type="tel"></div>
-        <div class="field"><span>Visitas de este ciclo</span>
-          <div class="stepper"><button class="sq" id="minus" aria-label="Restar una visita">−</button><span class="num" id="eVisits"></span><button class="sq" id="plus" aria-label="Sumar una visita">+</button></div>
+        <div class="muted" id="noSel" style="font-size:14px">Elige un cliente de la lista para editarlo.</div>
+        <div id="editBody" hidden style="display:flex;flex-direction:column;gap:16px">
+          <div class="field"><label for="eName">Nombre</label><input id="eName" type="text"></div>
+          <div class="field"><label for="ePhone">Teléfono</label><input id="ePhone" type="tel"></div>
+          <div class="field"><span>Visitas de este ciclo</span>
+            <div class="stepper"><button class="sq" id="minus" aria-label="Restar una visita">−</button><span class="num" id="eVisits"></span><button class="sq" id="plus" aria-label="Sumar una visita">+</button></div>
+          </div>
+          <div class="two"><button class="alt" id="addVisit">Sumar visita</button><button class="alt" id="redeem">Canjear premio</button></div>
+          <button class="danger" id="askReset">Reiniciar visitas a 0</button>
+          <div class="confirm" id="confirm" hidden>
+            <span>¿Reiniciar las visitas de <b id="cName"></b> a 0? Los sellos de su pase se vacían.</span>
+            <div><button id="doReset" style="border:0;background:#FF8A80;color:#000">Sí, reiniciar</button><button id="noReset" style="border:1px solid rgba(255,255,255,.3);background:transparent;color:#fff">Cancelar</button></div>
+          </div>
+          <button class="btn" id="save" style="height:52px;font-size:16px">Guardar cambios</button>
+          <div class="ok" id="eOk" hidden></div><div class="bad" id="eErr" hidden></div>
+          <span class="small">El pase del cliente se actualiza solo. Cada cambio queda en el historial con fecha y usuario.</span>
+          <div class="hist" id="hist"></div>
         </div>
-        <button class="danger" id="askReset">Reiniciar visitas a 0</button>
-        <div class="confirm" id="confirm" hidden>
-          <span>¿Reiniciar las visitas de <b id="cName"></b> a 0? Los sellos de su pase se vacían.</span>
-          <div><button id="doReset" style="border:0;background:#FF8A80;color:#000">Sí, reiniciar</button><button id="noReset" style="border:1px solid rgba(255,255,255,.3);background:transparent;color:#fff">Cancelar</button></div>
-        </div>
-        <button class="btn" id="save" style="height:52px;font-size:16px">Guardar cambios</button>
-        <div class="ok" id="eOk" hidden></div><div class="bad" id="eErr" hidden></div>
-        <span class="small">El pase del cliente se actualiza solo. Cada cambio queda en el historial con fecha y usuario.</span>
-        <div class="hist" id="hist"></div>
       </div>
 
+      <div class="card">
+        <h2>Reglas del programa</h2>
+        <div class="rule"><span class="muted">Recompensa</span><b id="rReward"></b></div>
+        <div class="rule"><span class="muted">Visitas para el premio</span><b id="rVisits"></b></div>
+        <div class="rule"><span class="muted">Horas mínimas entre visitas</span><b id="rHours"></b></div>
+        <div class="rule"><span class="muted">Avisos por cliente al mes</span><b id="rNotices"></b></div>
+        <div class="rule"><span class="muted">Sello de la tarjeta</span>
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Tijeras"><circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/></svg></div>
+      </div>
+    </div>
+
+    <div class="col">
       <div class="card">
         <h2>Enviar aviso</h2>
         <span class="muted" style="font-size:13px;line-height:1.45">Aparece como notificación en la pantalla de bloqueo de quienes tienen el pase en Wallet.</span>
@@ -114,14 +133,6 @@ input[type=text],input[type=tel],input[type=password]{width:100%;height:46px;bor
         <div class="ok" id="nOk" hidden></div><div class="bad" id="nErr" hidden></div>
         <span class="small">Máximo <span id="maxN">2</span> avisos al mes por cliente. Quien apague las notificaciones de su pase no los recibe. Un aviso nuevo reemplaza al anterior.</span>
       </div>
-
-      <div class="card">
-        <h2>Reglas del programa</h2>
-        <div class="rule"><span class="muted">Recompensa</span><b id="rReward"></b></div>
-        <div class="rule"><span class="muted">Visitas para el premio</span><b id="rVisits"></b></div>
-        <div class="rule"><span class="muted">Sello de la tarjeta</span>
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Tijeras"><circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/></svg></div>
-      </div>
     </div>
   </div>
 </div>
@@ -129,7 +140,7 @@ input[type=text],input[type=tel],input[type=password]{width:100%;height:46px;bor
 <script>
 const SLUG = "__SLUG__";
 const $ = (id) => document.getElementById(id);
-let KEY = '', info = null, list = [], sel = null, draft = null, aud = 0, counts = [null, null, null];
+let KEY = '', info = null, list = [], sel = null, draft = null, cur = null, code = '', aud = 0, counts = [null, null, null];
 const AUDS = [['all', 'Todos los clientes'], ['inactive', 'Sin venir hace 5 semanas o más'], ['near_reward', 'A 1-2 visitas del premio']];
 
 async function api(path, opts = {}) {
@@ -157,7 +168,8 @@ async function enter(key) {
   sessionStorage.setItem('adminKey', key);
   $('login').hidden = true; $('app').hidden = false;
   $('rReward').textContent = info.reward; $('rVisits').textContent = info.visitsRequired;
-  buildAuds(); await loadList(); refreshCounts();
+  $('rHours').textContent = info.minHoursBetweenVisits + ' h'; $('rNotices').textContent = info.maxNoticesPerMonth; $('maxN').textContent = info.maxNoticesPerMonth;
+  buildAuds(); await loadList(); if (list.length) await pick(list[0].id); refreshCounts();
 }
 
 async function loadStats() {
@@ -180,8 +192,9 @@ async function loadList() {
 }
 async function pick(id) {
   sel = id; const d = await api('/customers/' + id); const c = d.customer;
-  draft = { name: c.name, phone: c.phone, visits: c.visits };
-  $('editCard').hidden = false; $('confirm').hidden = true; $('askReset').hidden = false; show($('eOk')); show($('eErr'));
+  draft = { name: c.name, phone: c.phone, visits: c.visits }; cur = c; code = d.code;
+  $('noSel').hidden = true; $('editBody').hidden = false; $('addVisit').disabled = c.visits >= c.required; $('redeem').disabled = !c.rewardAvailable;
+   $('confirm').hidden = true; $('askReset').hidden = false; show($('eOk')); show($('eErr'));
   $('eName').value = draft.name; $('ePhone').value = draft.phone; $('eVisits').textContent = draft.visits + ' de ' + c.required; $('cName').textContent = c.name;
   const h = $('hist'); h.textContent = '';
   const L = { visit: 'Visita', redeem: 'Canje', edit: 'Edición', reset: 'Reinicio', register: 'Registro' };
@@ -198,6 +211,18 @@ $('save').onclick = async () => {
     await Promise.all([loadList(), loadStats()]); await pick(sel); show($('eOk'), 'Cambios guardados. El pase del cliente se actualizará solo.');
   } catch (e) { show($('eErr'), e.message); }
 };
+async function act(path, okText) {
+  show($('eErr')); show($('eOk'));
+  try {
+    const r = await api(path, { method: 'POST', body: JSON.stringify({ code }) });
+    await Promise.all([loadList(), loadStats()]); await pick(sel);
+    if (r.status === 'too_soon') show($('eErr'), 'Ya sumó una visita hace poco. Podrá sumar otra desde ' + new Date(r.nextAllowedAt).toLocaleString('es-DO') + '.');
+    else if (r.status === 'free_available') show($('eErr'), 'Ya completó sus visitas: canjea el premio.');
+    else show($('eOk'), r.rewardUnlocked ? 'Visita sumada. ¡Ya tiene su ' + info.reward.toLowerCase() + '!' : okText);
+  } catch (e) { show($('eErr'), e.message); }
+}
+$('addVisit').onclick = () => act('/scan', 'Visita sumada.');
+$('redeem').onclick = () => act('/redeem', 'Premio canjeado. Su tarjeta vuelve a 0.');
 $('askReset').onclick = () => { $('confirm').hidden = false; $('askReset').hidden = true; };
 $('noReset').onclick = () => { $('confirm').hidden = true; $('askReset').hidden = false; };
 $('doReset').onclick = async () => {

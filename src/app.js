@@ -47,7 +47,8 @@ function createApp(svc, { apple } = {}) {
   // Público
   r.get('/info', (req, res) => {
     const b = req.biz;
-    res.json({ name: b.name, reward: b.reward, visitsRequired: b.visits_required });
+    res.json({ name: b.name, reward: b.reward, visitsRequired: b.visits_required,
+      minHoursBetweenVisits: b.min_hours_between_visits, maxNoticesPerMonth: b.max_notices_per_month });
   });
   r.post('/register', registerLimit, (req, res) => {
     const out = svc.register(req.biz, req.body || {});

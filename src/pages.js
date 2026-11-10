@@ -10,6 +10,11 @@ input[type=text],input[type=tel],input[type=password]{width:100%;padding:14px;bo
 .check{display:flex;gap:10px;align-items:flex-start;margin:18px 0;color:#ccc;font-size:14px}.check input{margin-top:3px;width:20px;height:20px}
 button,a.btn{display:block;width:100%;text-align:center;padding:15px;border-radius:12px;border:0;background:#fff;color:#000;font-size:17px;font-weight:600;text-decoration:none;margin-top:12px}
 button.alt{background:#222;color:#fff}.err{color:#ff6b6b;margin-top:12px;min-height:20px}
+header.hero{text-align:center;margin:8px 0 28px}
+.hero .logo{width:150px;height:150px;margin:0 auto 22px;border-radius:50%;overflow:hidden;border:3px solid #fff;background:#000}
+.hero .logo img{display:block;width:100%;height:100%;object-fit:cover}
+.hero h1{font-size:26px;letter-spacing:.06em;margin:0 0 8px;font-weight:800}
+.hero p.sub{font-size:18px;color:#fff;margin:0}
 pre{background:#111;border:1px solid #333;border-radius:12px;padding:12px;white-space:pre-wrap;word-break:break-word;font-size:13px}`;
 
 function shell(title, body, script) {
@@ -18,21 +23,25 @@ function shell(title, body, script) {
 }
 
 function registro(b, appleOn) {
-  const body = `<h1>${esc(b.name)}</h1><p class="sub">Tarjeta de fidelidad: ${b.visits_required} visitas y ${esc(b.reward.toLowerCase())}.</p>
+  const body = `<header class="hero">
+<div class="logo"><img src="/api/${esc(b.slug)}/logo.png" alt="Logo de ${esc(b.name)}" onerror="this.parentNode.hidden=true"></div>
+<h1>Tarjeta de fidelidad</h1>
+<p class="sub">${b.visits_required} visitas = ${esc(b.reward.toLowerCase())}</p>
+</header>
 <form id="f"><label>Nombre</label><input id="n" type="text" autocomplete="name" required>
 <label>Teléfono</label><input id="p" type="tel" autocomplete="tel" inputmode="tel" required>
 <div class="check"><input id="c" type="checkbox"><span>Acepto que ${esc(b.name)} guarde mi nombre y teléfono para la tarjeta de fidelidad y me envíe avisos.</span></div>
 <button type="submit">Crear mi tarjeta</button><div class="err" id="e"></div></form>
-<div id="ok" hidden><p class="sub">¡Listo! Agrega tu tarjeta al teléfono:</p>
-${appleOn ? '<a class="btn" id="apple">Agregar a Apple Wallet</a>' : '<p class="sub">Apple Wallet no está disponible todavía.</p>'}
-<p class="sub" style="margin-top:28px">Tu código (para la prueba en caja):</p><pre id="code"></pre>
+<div id="ok" hidden><p class="sub" style="text-align:center">¡Listo! Agrega tu tarjeta al teléfono:</p>
+${appleOn ? '<a class="btn" id="apple">Agregar a Apple Wallet</a>' : '<p class="sub" style="text-align:center">Apple Wallet no está disponible todavía.</p>'}
+<p class="sub" style="margin-top:28px;text-align:center">Tu código (para la prueba en caja):</p><pre id="code"></pre>
 <a class="btn" id="caja" style="background:#222;color:#fff">Abrir caja con este código</a></div>`;
   const script = `
 const slug=${JSON.stringify(b.slug)};
 document.getElementById('f').addEventListener('submit',async(ev)=>{ev.preventDefault();const e=document.getElementById('e');e.textContent='';
 const r=await fetch('/api/'+slug+'/register',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:document.getElementById('n').value,phone:document.getElementById('p').value,consent:document.getElementById('c').checked})});
 const j=await r.json();if(!r.ok){e.textContent=j.message||'Error';return}
-document.getElementById('f').hidden=true;document.getElementById('ok').hidden=false;
+document.getElementById('f').hidden=true;document.querySelector('.hero p.sub').hidden=false;document.getElementById('ok').hidden=false;
 document.getElementById('code').textContent=j.code;document.getElementById('caja').href='/caja/'+slug+'?code='+encodeURIComponent(j.code);
 const a=document.getElementById('apple');if(a)a.href='/api/'+slug+'/pass.pkpass?code='+encodeURIComponent(j.code);});`;
   return shell(`${b.name} · Tarjeta`, body, script);

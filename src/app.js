@@ -1,6 +1,7 @@
 const express = require('express');
 const { HttpError } = require('./service');
 const stamps = require('./stamps');
+const pages = require('./pages');
 
 function createApp(svc, { apple } = {}) {
   const app = express();
@@ -9,6 +10,10 @@ function createApp(svc, { apple } = {}) {
   app.use(express.json({ limit: '10kb' }));
 
   if (apple) app.use('/apple', apple.router);
+
+  // Páginas del cliente y de caja
+  app.get('/r/:slug', (req, res) => res.type('html').send(pages.registro(svc.getBusiness(req.params.slug), !!apple)));
+  app.get('/caja/:slug', (req, res) => res.type('html').send(pages.caja(svc.getBusiness(req.params.slug))));
 
   app.get('/health', (_req, res) => res.json({ ok: true }));
 

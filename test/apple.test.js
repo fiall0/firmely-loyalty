@@ -152,3 +152,18 @@ test('si el negocio tiene logo, el pase lo incluye junto al nombre', async () =>
     assert.equal(JSON.parse(Buffer.from(files['pass.json']).toString()).logoText, 'UNDERCUT');
   } finally { s.server.close(); }
 });
+
+test('páginas de registro y caja responden', async () => {
+  const s = await setup();
+  try {
+    let r = await fetch(`${s.url}/r/undercut`);
+    assert.equal(r.status, 200);
+    const html = await r.text();
+    assert.match(html, /Agregar a Apple Wallet/);
+    assert.match(html, /Undercut/);
+    r = await fetch(`${s.url}/caja/undercut`);
+    assert.equal(r.status, 200);
+    r = await fetch(`${s.url}/r/noexiste`);
+    assert.equal(r.status, 404);
+  } finally { s.server.close(); }
+});

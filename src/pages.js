@@ -24,13 +24,16 @@ function registro(b, appleOn) {
 <div class="check"><input id="c" type="checkbox"><span>Acepto que ${esc(b.name)} guarde mi nombre y teléfono para la tarjeta de fidelidad y me envíe avisos.</span></div>
 <button type="submit">Crear mi tarjeta</button><div class="err" id="e"></div></form>
 <div id="ok" hidden><p class="sub">¡Listo! Agrega tu tarjeta al teléfono:</p>
-${appleOn ? '<a class="btn" id="apple">Agregar a Apple Wallet</a>' : '<p class="sub">Apple Wallet no está disponible todavía.</p>'}</div>`;
+${appleOn ? '<a class="btn" id="apple">Agregar a Apple Wallet</a>' : '<p class="sub">Apple Wallet no está disponible todavía.</p>'}
+<p class="sub" style="margin-top:28px">Tu código (para la prueba en caja):</p><pre id="code"></pre>
+<a class="btn" id="caja" style="background:#222;color:#fff">Abrir caja con este código</a></div>`;
   const script = `
 const slug=${JSON.stringify(b.slug)};
 document.getElementById('f').addEventListener('submit',async(ev)=>{ev.preventDefault();const e=document.getElementById('e');e.textContent='';
 const r=await fetch('/api/'+slug+'/register',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:document.getElementById('n').value,phone:document.getElementById('p').value,consent:document.getElementById('c').checked})});
 const j=await r.json();if(!r.ok){e.textContent=j.message||'Error';return}
 document.getElementById('f').hidden=true;document.getElementById('ok').hidden=false;
+document.getElementById('code').textContent=j.code;document.getElementById('caja').href='/caja/'+slug+'?code='+encodeURIComponent(j.code);
 const a=document.getElementById('apple');if(a)a.href='/api/'+slug+'/pass.pkpass?code='+encodeURIComponent(j.code);});`;
   return shell(`${b.name} · Tarjeta`, body, script);
 }
@@ -42,7 +45,7 @@ function caja(b) {
 <button id="s">Sumar visita</button><button class="alt" id="r">Canjear premio</button><div class="err" id="e"></div><pre id="o" hidden></pre>`;
   const script = `
 const slug=${JSON.stringify(b.slug)};const $=(i)=>document.getElementById(i);
-$('k').value=sessionStorage.getItem('k')||'';
+$('k').value=sessionStorage.getItem('k')||'';$('c').value=new URLSearchParams(location.search).get('code')||'';
 async function go(path){sessionStorage.setItem('k',$('k').value);$('e').textContent='';
 const r=await fetch('/api/'+slug+'/'+path,{method:'POST',headers:{'content-type':'application/json','x-api-key':$('k').value,'x-actor':'caja'},body:JSON.stringify({code:$('c').value.trim()})});
 const j=await r.json();$('o').hidden=false;$('o').textContent=JSON.stringify(j,null,2);}

@@ -77,5 +77,9 @@ if (googleCfg) {
 }
 live.customerChanged = (p) => { hooks.customerChanged(p); adapters.forEach((a) => a.customerChanged(p)); };
 live.notice = (p) => { hooks.notice(p); adapters.forEach((a) => a.notice(p)); };
+// Avisos automáticos, cumpleaños: se revisan cada hora (solo envían de 9:00 a 20:00, hora del negocio).
+const automate = () => { try { svc.runAutomations(); } catch (e) { console.error('[automatismos]', e.message); } };
+setTimeout(automate, 60 * 1000).unref();
+setInterval(automate, 60 * 60 * 1000).unref();
 const port = Number(process.env.PORT || 3000);
 createApp(svc, { apple, google }).listen(port, () => console.log(`Fidelidad escuchando en :${port}`));

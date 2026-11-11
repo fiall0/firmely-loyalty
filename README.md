@@ -69,3 +69,16 @@ Se activa con `GOOGLE_ISSUER_ID` (ID de emisor de Google Pay & Wallet Console) y
 - Cada negocio es una clase de lealtad (`<issuer>.<slug>`) y cada cliente un objeto (`<issuer>.<slug>-<id>`).
 - Al sumar visita, canjear o editar se actualiza el objeto; al sumar visita, canjear o enviar un aviso se manda un mensaje con notificación (`TEXT_AND_NOTIFY`).
 - Mientras el emisor esté en modo de prueba, solo pueden agregar el pase las cuentas de Google registradas como "Test users".
+
+## Métricas, avisos y opciones por negocio
+
+Cada negocio tiene en su panel (`/admin/<slug>`) estas pestañas nuevas:
+
+- **Resumen**: clientes, visitas por semana y por día, clientes que vuelven, mejores clientes y qué hacer hoy.
+- **Opciones**:
+  - *Aviso al pasar cerca del local*: hasta 10 locales (enlace de Google Maps o coordenadas). Va en `locations` del pase de Apple y de Google; la ubicación del cliente nunca llega al servidor.
+  - *Avisos automáticos* (activos por defecto): recordatorio a quien dejó de venir y aviso de premio esperando. Se revisan cada hora y solo envían de 9:00 a 20:00 (hora del negocio, por defecto America/Santo_Domingo), respetan el tope mensual y no repiten.
+  - *Opcionales, apagadas por defecto*: regalo de cumpleaños, recompensa por referir (se paga en la primera visita en caja del amigo) y días de visita doble.
+
+API (rol admin): `GET /api/:slug/metrics`, `GET|PATCH /api/:slug/settings`, `POST /api/:slug/geocode`.
+Los ajustes se guardan en `businesses.settings_json`; cumpleaños y referidos agregan columnas a `customers` (migración automática).

@@ -97,8 +97,11 @@ function createApple({ db, svc, secret, config, push }) {
     const brand = svc.brandOf(b);
     const serial = serialFor(b.slug, row.id);
     const required = b.visits_required;
+    const prox = svc.proximity(b);
+    const extra = svc.extraInfo(b, row, base).map((e) => ({ key: e.key, label: e.label, value: e.text }));
     return {
       formatVersion: 1,
+      ...(prox.locations.length ? { locations: prox.locations.map((l) => ({ ...l, relevantText: prox.text })) } : {}),
       passTypeIdentifier: passTypeId,
       teamIdentifier: teamId,
       serialNumber: serial,
@@ -123,6 +126,7 @@ function createApple({ db, svc, secret, config, push }) {
           { key: 'member_id', label: 'ID de miembro', value: String(row.id).padStart(6, '0') },
           { key: 'terms', label: 'Cómo funciona',
             value: `Muestra este código en caja en cada ${unitsOf(b).one}. A las ${required} ${unitsOf(b).many} ganas: ${b.reward}.` },
+          ...extra,
         ],
       },
     };

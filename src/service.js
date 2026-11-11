@@ -11,6 +11,8 @@ class HttpError extends Error {
 const sha256 = (s) => crypto.createHash('sha256').update(s).digest('hex');
 const DAY = 24 * 3600 * 1000;
 const { normalizeBrand } = require('./stamps');
+const { normalizeSettings, localParts, parseBirthday } = require('./settings');
+const { unitsOf } = require('./text');
 
 function normalizePhone(raw) {
   let d = String(raw ?? '').replace(/\D/g, '');
@@ -118,20 +120,47 @@ function createService({ db, secret, now = () => new Date(), hooks = {} }) {
       .run(b.id, customerId, kind, detail ? JSON.stringify(detail) : null, actor ?? null, iso());
   }
 
-  function register(b, { name, phone, consent }) {
+  // ---------- ajustes, referidos ----------
+  const getSettings = (b) => normalizeSettings(JSON.parse(b.settings_json || '{}'));
+  const refCodeFor = (slug, id) =>
+    `${id}.${crypto.createHmac('sha256', secret).update(`ref.${slug}.${id}`).digest('base64url').slice(0, 8)}`;
+  function parseRef(b, ref) {
+    const m = /^(\d{1,9})\.([A-Za-z0-9_-]{8})$/.exec(String(ref ?? ''));
+    if (!m) return null;
+    const expected = Buffer.from(refCodeFor(b.slug, m[1]));
+    const given = Buffer.from(String(ref));
+    if (expected.length !== given.length || !crypto.timingSafeEqual(expected, given)) return null;
+    return Number(m[1]);
+  }
+
+  function register(b, { name, phone, consent, birthday, ref }) {
     if (consent !== true) throw new HttpError(400, 'no_consent', 'Se requiere aceptar el uso de datos.');
     const cleanedName = cleanName(name);
     const norm = normalizePhone(phone);
+    const cfg = getSettings(b);
+    const extra = cfg.referral.enabled ? { referralCode: undefined } : {};
     const existing = db.prepare('SELECT * FROM customers WHERE business_id = ? AND phone_norm = ?').get(b.id, norm);
     if (existing) {
-      return { customer: publicCustomer(b, existing), code: codeFor(b.slug, existing.id), existing: true };
+      if (cfg.referral.enabled) extra.referralCode = refCodeFor(b.slug, existing.id);
+      return { customer: publicCustomer(b, existing), code: codeFor(b.slug, existing.id), existing: true, ...extra };
     }
-    const info = db.prepare(`INSERT INTO customers (business_id, name, phone, phone_norm, consent_at, created_at)
-      VALUES (?,?,?,?,?,?)`).run(b.id, cleanedName, formatPhone(norm), norm, iso(), iso());
+    let bday = null;
+    if (cfg.birthday.enabled && birthday) {
+      bday = parseBirthday(birthday);
+      if (!bday) throw new HttpError(400, 'bad_birthday', 'Cumpleaños no válido.');
+    }
+    let referredBy = null;
+    if (cfg.referral.enabled && ref) {
+      const rid = parseRef(b, ref);
+      if (rid && db.prepare('SELECT 1 FROM customers WHERE id = ? AND business_id = ?').get(rid, b.id)) referredBy = rid;
+    }
+    const info = db.prepare(`INSERT INTO customers (business_id, name, phone, phone_norm, birthday, referred_by, consent_at, created_at)
+      VALUES (?,?,?,?,?,?,?,?)`).run(b.id, cleanedName, formatPhone(norm), norm, bday, referredBy, iso(), iso());
     const c = loadCustomer(b, info.lastInsertRowid);
-    logEvent(b, c.id, 'register', null, 'cliente');
+    logEvent(b, c.id, 'register', referredBy ? { referredBy } : null, 'cliente');
     hook('customerChanged', { business: b, customer: publicCustomer(b, c), reason: 'register' });
-    return { customer: publicCustomer(b, c), code: codeFor(b.slug, c.id), existing: false };
+    if (cfg.referral.enabled) extra.referralCode = refCodeFor(b.slug, c.id);
+    return { customer: publicCustomer(b, c), code: codeFor(b.slug, c.id), existing: false, ...extra };
   }
 
   function listCustomers(b, q) {
@@ -170,12 +199,34 @@ function createService({ db, secret, now = () => new Date(), hooks = {} }) {
         return { status: 'too_soon', nextAllowedAt: next.toISOString(), customer: publicCustomer(b, c) };
       }
     }
-    db.prepare('UPDATE customers SET visits = visits + 1, last_visit_at = ? WHERE id = ?').run(iso(), c.id);
+    const cfg = getSettings(b);
+    const today = localParts(now(), cfg.timezone);
+    const double = cfg.doubleDays.enabled && cfg.doubleDays.days.includes(today.weekday);
+    let add = double ? cfg.doubleDays.multiplier : 1;
+    const firstVisit = !c.last_visit_at;
+    const paysReferral = firstVisit && c.referred_by && !c.referral_paid && cfg.referral.enabled;
+    if (paysReferral) add += cfg.referral.newBonus;
+    const newVisits = Math.min(b.visits_required, c.visits + add);
+    db.prepare('UPDATE customers SET visits = ?, last_visit_at = ?, referral_paid = referral_paid OR ? WHERE id = ?')
+      .run(newVisits, iso(), paysReferral ? 1 : 0, c.id);
     const updated = loadCustomer(b, c.id);
-    logEvent(b, c.id, 'visit', { visits: updated.visits }, actor);
+    logEvent(b, c.id, 'visit', { visits: updated.visits, added: updated.visits - c.visits, double }, actor);
     const pub = publicCustomer(b, updated);
     hook('customerChanged', { business: b, customer: pub, reason: 'visit' });
-    return { status: 'visit', rewardUnlocked: pub.rewardAvailable, customer: pub };
+    if (paysReferral && cfg.referral.referrerBonus > 0) {
+      const ref = db.prepare('SELECT * FROM customers WHERE id = ? AND business_id = ?').get(c.referred_by, b.id);
+      if (ref) {
+        const rv = Math.min(b.visits_required, ref.visits + cfg.referral.referrerBonus);
+        if (rv !== ref.visits) {
+          db.prepare('UPDATE customers SET visits = ? WHERE id = ?').run(rv, ref.id);
+          logEvent(b, ref.id, 'referral_reward', { friend: c.name, added: rv - ref.visits }, 'sistema');
+          const after = loadCustomer(b, ref.id);
+          hook('customerChanged', { business: b, customer: publicCustomer(b, after), reason: 'edit' });
+          deliver(b, [after], `¡Tu amigo ${c.name.split(' ')[0]} ya visitó ${b.name}! Ganaste ${rv - ref.visits} ${rv - ref.visits === 1 ? unitsOf(b).one : unitsOf(b).many}.`, 'auto_referral', 'sistema');
+        }
+      }
+    }
+    return { status: 'visit', rewardUnlocked: pub.rewardAvailable, added: updated.visits - c.visits, doubleDay: double, customer: pub };
   })();
 
   const redeem = (b, code, actor) => db.transaction(() => {
@@ -305,7 +356,189 @@ function createService({ db, secret, now = () => new Date(), hooks = {} }) {
     return { noticeId: Number(info.lastInsertRowid), sent: recipients.length, skippedCapped: skipped };
   })();
 
+  // ---------- avisos del sistema (automáticos, cumpleaños, referidos) ----------
+  function deliver(b, customers, msg, audience, actor, { capped = false } = {}) {
+    const text = String(msg).slice(0, 80);
+    const monthAgo = new Date(now().getTime() - 30 * DAY).toISOString();
+    const recipients = [];
+    let skipped = 0;
+    for (const c of customers) {
+      if (capped) {
+        const n = db.prepare('SELECT COUNT(*) n FROM notice_deliveries WHERE customer_id = ? AND created_at >= ?').get(c.id, monthAgo).n;
+        if (n >= b.max_notices_per_month) { skipped += 1; continue; }
+      }
+      recipients.push(c);
+    }
+    if (!recipients.length) return { sent: 0, skipped };
+    const info = db.prepare(`INSERT INTO notices (business_id, audience, message, sent, skipped, actor, created_at)
+      VALUES (?,?,?,?,?,?,?)`).run(b.id, audience, text, recipients.length, skipped, actor ?? null, iso());
+    const ins = db.prepare('INSERT INTO notice_deliveries (notice_id, customer_id, created_at) VALUES (?,?,?)');
+    for (const c of recipients) ins.run(info.lastInsertRowid, c.id, iso());
+    logEvent(b, null, 'notice', { audience, sent: recipients.length, skipped }, actor);
+    hook('notice', { business: b, message: text, customers: recipients.map((c) => publicCustomer(b, c)) });
+    return { sent: recipients.length, skipped };
+  }
+
+  const DAYS_ES = ['domingos', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábados'];
+  const joinEs = (a) => (a.length < 2 ? a.join('') : `${a.slice(0, -1).join(', ')} y ${a[a.length - 1]}`);
+
+  /** Textos extra que se muestran en el pase (reverso): referidos, visitas dobles y cumpleaños. */
+  function extraInfo(b, row, base) {
+    const cfg = getSettings(b);
+    const u = unitsOf(b);
+    const out = [];
+    if (cfg.referral.enabled) {
+      const n = cfg.referral.referrerBonus;
+      out.push({ key: 'invita', label: 'Invita a un amigo',
+        text: `Comparte tu enlace: ${String(base).replace(/\/+$/, '')}/r/${b.slug}?ref=${refCodeFor(b.slug, row.id)}` +
+          (n > 0 ? ` Cuando tu amigo haga su primera ${u.one}, ganas ${n} ${n === 1 ? u.one : u.many}.` : '') });
+    }
+    if (cfg.doubleDays.enabled && cfg.doubleDays.days.length) {
+      out.push({ key: 'doble', label: 'Días especiales',
+        text: `Los ${joinEs(cfg.doubleDays.days.map((d) => DAYS_ES[d]))}, cada ${u.one} cuenta ${cfg.doubleDays.multiplier === 3 ? 'triple' : 'doble'}.` });
+    }
+    if (cfg.birthday.enabled && cfg.birthday.bonusVisits > 0 && row.birthday) {
+      out.push({ key: 'cumple', label: 'Regalo de cumpleaños',
+        text: `El día de tu cumpleaños te regalamos ${cfg.birthday.bonusVisits} ${cfg.birthday.bonusVisits === 1 ? u.one : u.many}.` });
+    }
+    return out;
+  }
+
+  /** Ubicaciones para que el teléfono muestre la tarjeta al pasar cerca del local. */
+  function proximity(b) {
+    const cfg = getSettings(b);
+    return {
+      locations: cfg.locations.map((l) => ({ latitude: l.lat, longitude: l.lng })),
+      text: cfg.proximityText || `¡Estás cerca de ${b.name}! Muestra tu tarjeta.`,
+    };
+  }
+
+  /** Que los pases ya instalados se vuelvan a descargar con la información nueva. */
+  function refreshPasses(b) {
+    db.prepare('INSERT INTO pass_changes (customer_id) SELECT id FROM customers WHERE business_id = ?').run(b.id);
+    for (const c of db.prepare('SELECT * FROM customers WHERE business_id = ?').all(b.id)) {
+      hook('customerChanged', { business: b, customer: publicCustomer(b, c), reason: 'edit' });
+    }
+  }
+
+  function updateSettings(b, patch = {}, actor) {
+    const cur = getSettings(b);
+    const allowed = ['timezone', 'locations', 'proximityText', 'auto', 'birthday', 'referral', 'doubleDays'];
+    const clean = {};
+    for (const k of allowed) if (patch[k] !== undefined) clean[k] = patch[k];
+    if (!Object.keys(clean).length) throw new HttpError(400, 'empty_patch', 'No hay cambios para guardar.');
+    const next = normalizeSettings({ ...cur, ...clean });
+    db.prepare('UPDATE businesses SET settings_json = ? WHERE id = ?').run(JSON.stringify(next), b.id);
+    logEvent(b, null, 'settings', { changed: Object.keys(clean) }, actor);
+    const onPass = ['locations', 'proximityText', 'referral', 'doubleDays', 'birthday']
+      .some((k) => clean[k] !== undefined && JSON.stringify(next[k]) !== JSON.stringify(cur[k]));
+    if (onPass) refreshPasses(getBusiness(b.slug));
+    return next;
+  }
+
+  // ---------- métricas ----------
+  function metrics(b) {
+    const cfg = getSettings(b);
+    const nowMs = now().getTime();
+    const ago = (d) => new Date(nowMs - d * DAY).toISOString();
+    const one = (sql, ...a) => db.prepare(sql).get(b.id, ...a);
+    const customers = one('SELECT COUNT(*) n FROM customers WHERE business_id = ?').n;
+    const visitTimes = db.prepare("SELECT created_at t FROM events WHERE business_id = ? AND kind = 'visit' AND created_at >= ?")
+      .all(b.id, ago(56)).map((r) => new Date(r.t));
+    const weekly = Array(8).fill(0);
+    const byWeekday = Array(7).fill(0);
+    for (const t of visitTimes) {
+      const w = Math.floor((nowMs - t.getTime()) / (7 * DAY));
+      if (w >= 0 && w < 8) weekly[7 - w] += 1;
+      byWeekday[localParts(t, cfg.timezone).weekday] += 1;
+    }
+    const weekEnds = Array.from({ length: 8 }, (_, i) => new Date(nowMs - (7 - i) * 7 * DAY).toISOString());
+    const visits7 = weekly[7];
+    const visits30 = one("SELECT COUNT(*) n FROM events WHERE business_id = ? AND kind = 'visit' AND created_at >= ?", ago(30)).n;
+    const withVisit = one("SELECT COUNT(DISTINCT customer_id) n FROM events WHERE business_id = ? AND kind = 'visit'").n;
+    const returning = one(`SELECT COUNT(*) n FROM (SELECT customer_id FROM events WHERE business_id = ? AND kind = 'visit'
+      GROUP BY customer_id HAVING COUNT(*) >= 2)`).n;
+    const req = b.visits_required;
+    return {
+      customers,
+      newCustomers7: one('SELECT COUNT(*) n FROM customers WHERE business_id = ? AND created_at >= ?', ago(7)).n,
+      newCustomers30: one('SELECT COUNT(*) n FROM customers WHERE business_id = ? AND created_at >= ?', ago(30)).n,
+      visits7, visits30,
+      activeCustomers30: one("SELECT COUNT(DISTINCT customer_id) n FROM events WHERE business_id = ? AND kind = 'visit' AND created_at >= ?", ago(30)).n,
+      returningRate: withVisit ? Math.round((returning / withVisit) * 100) : 0,
+      rewardsRedeemed: one('SELECT COALESCE(SUM(rewards_redeemed),0) n FROM customers WHERE business_id = ?').n,
+      rewardsRedeemed30: one("SELECT COUNT(*) n FROM events WHERE business_id = ? AND kind = 'redeem' AND created_at >= ?", ago(30)).n,
+      rewardsWaiting: one('SELECT COUNT(*) n FROM customers WHERE business_id = ? AND visits >= ?', req).n,
+      nearReward: one('SELECT COUNT(*) n FROM customers WHERE business_id = ? AND visits >= ? AND visits < ?', req - 2, req).n,
+      atRisk: one('SELECT COUNT(*) n FROM customers WHERE business_id = ? AND last_visit_at IS NOT NULL AND last_visit_at <= ?', ago(35)).n,
+      noticesSent30: one('SELECT COALESCE(SUM(sent),0) n FROM notices WHERE business_id = ? AND created_at >= ?', ago(30)).n,
+      referralsRewarded: one("SELECT COUNT(*) n FROM events WHERE business_id = ? AND kind = 'referral_reward'").n,
+      birthdayGifts30: one("SELECT COUNT(*) n FROM events WHERE business_id = ? AND kind = 'birthday' AND created_at >= ?", ago(30)).n,
+      weekly, weekEnds, byWeekday, timezone: cfg.timezone,
+      top: db.prepare(`SELECT c.name, COUNT(*) visits FROM events e JOIN customers c ON c.id = e.customer_id
+        WHERE e.business_id = ? AND e.kind = 'visit' GROUP BY c.id ORDER BY visits DESC, c.id LIMIT 5`).all(b.id),
+    };
+  }
+
+  // ---------- automatismos (se ejecutan cada hora; solo de 9:00 a 20:00 hora del negocio) ----------
+  function runAutomations({ force = false } = {}) {
+    const summary = [];
+    for (const b of db.prepare('SELECT * FROM businesses').all()) {
+      const cfg = getSettings(b);
+      const t = localParts(now(), cfg.timezone);
+      if (!force && (t.hour < 9 || t.hour >= 20)) continue;
+      const nowMs = now().getTime();
+      const u = unitsOf(b);
+      const r = { slug: b.slug, inactive: 0, rewardWaiting: 0, birthday: 0 };
+      const alreadySent = (customerId, audience, sinceIso) => !!db.prepare(`SELECT 1 FROM notice_deliveries d JOIN notices n ON n.id = d.notice_id
+        WHERE d.customer_id = ? AND n.audience = ? AND d.created_at >= ?`).get(customerId, audience, sinceIso);
+
+      const ai = cfg.auto.inactive;
+      if (ai.enabled) {
+        const cutoff = new Date(nowMs - ai.weeks * 7 * DAY).toISOString();
+        const rows = db.prepare(`SELECT * FROM customers WHERE business_id = ? AND last_visit_at IS NOT NULL
+          AND last_visit_at <= ? AND visits < ?`).all(b.id, cutoff, b.visits_required)
+          .filter((c) => !alreadySent(c.id, 'auto_inactive', cutoff));
+        r.inactive = deliver(b, rows, ai.message || `¡Te extrañamos en ${b.name}! Tu tarjeta te espera.`, 'auto_inactive', 'sistema', { capped: true }).sent;
+      }
+      const aw = cfg.auto.rewardWaiting;
+      if (aw.enabled) {
+        const cutoff = new Date(nowMs - aw.days * DAY).toISOString();
+        const since = new Date(nowMs - 30 * DAY).toISOString();
+        const rows = db.prepare(`SELECT * FROM customers WHERE business_id = ? AND visits >= ?
+          AND (last_visit_at IS NULL OR last_visit_at <= ?)`).all(b.id, b.visits_required, cutoff)
+          .filter((c) => !alreadySent(c.id, 'auto_reward', since));
+        r.rewardWaiting = deliver(b, rows, aw.message || `Tu ${b.reward.toLowerCase()} te espera en ${b.name}. ¡Pasa a canjearlo!`, 'auto_reward', 'sistema', { capped: true }).sent;
+      }
+      if (cfg.birthday.enabled) {
+        const md = (m, d) => `${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        const days = [md(t.month, t.day)];
+        const leap = (t.year % 4 === 0 && t.year % 100 !== 0) || t.year % 400 === 0;
+        if (t.month === 2 && t.day === 28 && !leap) days.push('02-29');
+        const rows = db.prepare(`SELECT * FROM customers WHERE business_id = ? AND birthday IN (${days.map(() => '?').join(',')})`)
+          .all(b.id, ...days)
+          .filter((c) => !db.prepare("SELECT 1 FROM events WHERE customer_id = ? AND kind = 'birthday' AND detail LIKE ?").get(c.id, `%"year":${t.year}%`));
+        const bonus = cfg.birthday.bonusVisits;
+        const done = [];
+        for (const c of rows) {
+          const nv = Math.min(b.visits_required, c.visits + bonus);
+          if (nv !== c.visits) db.prepare('UPDATE customers SET visits = ? WHERE id = ?').run(nv, c.id);
+          logEvent(b, c.id, 'birthday', { year: t.year, bonus: nv - c.visits }, 'sistema');
+          const fresh = loadCustomer(b, c.id);
+          hook('customerChanged', { business: b, customer: publicCustomer(b, fresh), reason: 'edit' });
+          done.push(fresh);
+        }
+        const msg = cfg.birthday.message || `¡Feliz cumpleaños de parte de ${b.name}!` + (bonus ? ` Te regalamos ${bonus} ${bonus === 1 ? u.one : u.many}.` : '');
+        if (done.length) deliver(b, done, msg, 'auto_birthday', 'sistema');
+        r.birthday = done.length;
+      }
+      summary.push(r);
+    }
+    return summary;
+  }
+
   return {
+    getSettings, updateSettings, metrics, runAutomations, extraInfo, proximity, refCodeFor,
     createBusiness, getBusiness, roleFor, codeFor, brandOf, customerFromCode, publicCustomer,
     register, listCustomers, getCustomer, scan, redeem,
     updateCustomer, resetVisits, deleteCustomer, stats, sendNotice,

@@ -89,6 +89,11 @@ function open(file = ':memory:') {
   // Migración para bases creadas antes de la etapa 2.
   const cols = db.prepare('PRAGMA table_info(businesses)').all().map((c) => c.name);
   if (!cols.includes('brand_json')) db.exec("ALTER TABLE businesses ADD COLUMN brand_json TEXT NOT NULL DEFAULT '{}'");
+  if (!cols.includes('settings_json')) db.exec("ALTER TABLE businesses ADD COLUMN settings_json TEXT NOT NULL DEFAULT '{}'");
+  const cc = db.prepare('PRAGMA table_info(customers)').all().map((c) => c.name);
+  if (!cc.includes('birthday')) db.exec('ALTER TABLE customers ADD COLUMN birthday TEXT');
+  if (!cc.includes('referred_by')) db.exec('ALTER TABLE customers ADD COLUMN referred_by INTEGER');
+  if (!cc.includes('referral_paid')) db.exec('ALTER TABLE customers ADD COLUMN referral_paid INTEGER NOT NULL DEFAULT 0');
   return db;
 }
 

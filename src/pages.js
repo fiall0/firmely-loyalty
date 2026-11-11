@@ -11,7 +11,7 @@ const STYLE = (brand) => `
 body{margin:0;background:var(--bg);color:var(--fg);font:16px -apple-system,system-ui,sans-serif;padding:24px 16px;display:flex;justify-content:center}
 main{width:100%;max-width:420px}h1{font-size:24px;letter-spacing:.12em;text-transform:uppercase;margin:0 0 4px}
 p.sub{color:var(--muted);margin:0 0 24px}label{display:block;font-size:13px;color:var(--muted);margin:16px 0 6px}
-input[type=text],input[type=tel],input[type=password]{width:100%;padding:14px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:17px}
+input[type=text],input[type=tel],input[type=password],select{width:100%;padding:14px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:17px}
 .check{display:flex;gap:10px;align-items:flex-start;margin:18px 0;color:var(--muted);font-size:14px}.check input{margin-top:3px;width:20px;height:20px}
 button,a.btn{display:block;width:100%;text-align:center;padding:15px;border-radius:12px;border:0;background:var(--fg);color:var(--bg);font-size:17px;font-weight:600;text-decoration:none;margin-top:12px}
 button.alt{background:var(--alt);color:var(--fg)}.err{color:var(--badc);margin-top:12px;min-height:20px}
@@ -28,7 +28,14 @@ function shell(title, body, script, slug, brand) {
 <title>${esc(title)}</title><style>${STYLE(brand)}</style></head><body><main>${body}</main><script>${script}</script></body></html>`;
 }
 
-function registro(b, on, brand) {
+const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+function registro(b, on, brand, cfg = { birthday: {}, referral: {} }) {
+  const bday = cfg.birthday && cfg.birthday.enabled
+    ? `<label>Cumpleaños (opcional)</label><div style="display:flex;gap:10px"><select id="bd" style="flex:1"><option value="">Día</option>${Array.from({ length: 31 }, (_, i) => `<option>${i + 1}</option>`).join('')}</select><select id="bm" style="flex:2"><option value="">Mes</option>${MONTHS.map((m, i) => `<option value="${i + 1}">${m}</option>`).join('')}</select></div><p class="small" style="margin:6px 0 0;color:var(--muted);font-size:12px">Solo usamos día y mes para enviarte un regalo.</p>`
+    : '';
+  const refBlock = cfg.referral && cfg.referral.enabled
+    ? `<div id="share" hidden style="margin-top:22px;text-align:center"><p class="sub" style="margin:0 0 8px">Invita a un amigo y gana más ${esc(unitsOf(b).many)}:</p><pre id="refLink"></pre><button class="alt" id="copyRef" type="button">Copiar mi enlace</button></div>`
+    : '';
   const body = `<header class="hero">
 <div class="logo"><img src="/api/${esc(b.slug)}/logo.png" alt="Logo de ${esc(b.name)}" onerror="this.parentNode.hidden=true"></div>
 <h1>Tarjeta de fidelidad</h1>
@@ -36,6 +43,7 @@ function registro(b, on, brand) {
 </header>
 <form id="f"><label>Nombre</label><input id="n" type="text" autocomplete="name" required>
 <label>Teléfono</label><input id="p" type="tel" autocomplete="tel" inputmode="tel" required>
+${bday}
 <div class="check"><input id="c" type="checkbox"><span>Acepto que ${esc(b.name)} guarde mi nombre y teléfono para la tarjeta de fidelidad y me envíe avisos.</span></div>
 <button type="submit">Crear mi tarjeta</button><div class="err" id="e"></div></form>
 <div id="ok" hidden><p class="sub" style="text-align:center">¡Listo! Agrega tu tarjeta al teléfono:</p>
@@ -43,14 +51,16 @@ ${on.apple ? '<a class="btn" id="apple" hidden>Agregar a Apple Wallet</a>' : ''}
 ${on.google ? '<a class="btn" id="google" hidden>Agregar a Google Wallet</a>' : ''}
 ${on.apple || on.google ? '' : '<p class="sub" style="text-align:center">La billetera digital no está disponible todavía.</p>'}
 <p class="sub" style="margin-top:28px;text-align:center">Tu código (para la prueba en caja):</p><pre id="code"></pre>
+${refBlock}
 <a class="btn" id="caja" style="background:var(--alt);color:var(--fg)">Abrir caja con este código</a></div>`;
   const script = `
 const slug=${JSON.stringify(b.slug)};
 document.getElementById('f').addEventListener('submit',async(ev)=>{ev.preventDefault();const e=document.getElementById('e');e.textContent='';
-const r=await fetch('/api/'+slug+'/register',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:document.getElementById('n').value,phone:document.getElementById('p').value,consent:document.getElementById('c').checked})});
+const r=await fetch('/api/'+slug+'/register',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:document.getElementById('n').value,phone:document.getElementById('p').value,consent:document.getElementById('c').checked,ref:new URLSearchParams(location.search).get('ref')||undefined,birthday:(document.getElementById('bd')&&document.getElementById('bd').value&&document.getElementById('bm').value)?document.getElementById('bm').value+'-'+document.getElementById('bd').value:undefined})});
 const j=await r.json();if(!r.ok){e.textContent=j.message||'Error';return}
 document.getElementById('f').hidden=true;document.querySelector('.hero p.sub').hidden=false;document.getElementById('ok').hidden=false;
 document.getElementById('code').textContent=j.code;document.getElementById('caja').href='/caja/'+slug+'?code='+encodeURIComponent(j.code);
+const sh=document.getElementById('share');if(sh&&j.referralCode){const link=location.origin+'/r/'+slug+'?ref='+j.referralCode;sh.hidden=false;document.getElementById('refLink').textContent=link;document.getElementById('copyRef').onclick=async()=>{try{if(navigator.share){await navigator.share({url:link,title:document.title})}else{await navigator.clipboard.writeText(link);document.getElementById('copyRef').textContent='¡Copiado!'}}catch(e){}}}
 const ua=navigator.userAgent,ios=/iPhone|iPad|iPod/.test(ua)||(/Mac/.test(ua)&&navigator.maxTouchPoints>1),android=/Android/.test(ua);
 const a=document.getElementById('apple'),g=document.getElementById('google');
 if(a){a.href='/api/'+slug+'/pass.pkpass?code='+encodeURIComponent(j.code);a.hidden=android&&!!g}

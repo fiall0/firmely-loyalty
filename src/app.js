@@ -3,6 +3,7 @@ const { HttpError } = require('./service');
 const stamps = require('./stamps');
 const poster = require('./poster');
 const pages = require('./pages');
+const { parseCoords } = require('./settings');
 
 function createApp(svc, { apple, google } = {}) {
   const app = express();
@@ -13,7 +14,7 @@ function createApp(svc, { apple, google } = {}) {
   if (apple) app.use('/apple', apple.router);
 
   // Páginas del cliente y de caja
-  app.get('/r/:slug', (req, res) => res.type('html').send((() => { const b = svc.getBusiness(req.params.slug); return pages.registro(b, { apple: !!apple, google: !!google }, svc.brandOf(b)); })()));
+  app.get('/r/:slug', (req, res) => res.type('html').send((() => { const b = svc.getBusiness(req.params.slug); return pages.registro(b, { apple: !!apple, google: !!google }, svc.brandOf(b), svc.getSettings(b)); })()));
   app.get('/admin/:slug', (req, res) => res.type('html').send((() => { const b = svc.getBusiness(req.params.slug); return pages.admin(b, svc.brandOf(b)); })()));
   app.get('/caja/:slug', (req, res) => res.type('html').send((() => { const b = svc.getBusiness(req.params.slug); return pages.caja(b, svc.brandOf(b)); })()));
 
@@ -142,6 +143,27 @@ function createApp(svc, { apple, google } = {}) {
     res.json(svc.resetVisits(req.biz, Number(req.params.id), req.actor)));
   r.delete('/customers/:id', need('admin'), (req, res) =>
     res.json(svc.deleteCustomer(req.biz, Number(req.params.id), req.actor)));
+  r.get('/metrics', need('admin'), (req, res) => res.json(svc.metrics(req.biz)));
+  r.get('/settings', need('admin'), (req, res) => res.json({ settings: svc.getSettings(req.biz) }));
+  r.patch('/settings', need('admin'), (req, res) =>
+    res.json({ settings: svc.updateSettings(req.biz, req.body || {}, req.actor) }));
+  // Convierte lo que el dueño pegue (coordenadas o enlace de Google Maps, incluso acortado) en latitud y longitud.
+  r.post('/geocode', need('admin'), async (req, res, next) => {
+    try {
+      const text = String((req.body || {}).text || '').trim().slice(0, 500);
+      let found = parseCoords(text);
+      if (!found && /^https?:\/\//i.test(text)) {
+        const u = new URL(text);
+        if (!/(^|\.)(goo\.gl|g\.co|google\.com|google\.com\.do)$/.test(u.hostname)) {
+          throw new HttpError(400, 'bad_link', 'Pega un enlace de Google Maps.');
+        }
+        const resp = await fetch(u, { redirect: 'follow', signal: AbortSignal.timeout(6000), headers: { 'user-agent': 'Mozilla/5.0' } });
+        found = parseCoords(resp.url) || parseCoords((await resp.text()).slice(0, 300000));
+      }
+      if (!found) throw new HttpError(400, 'no_coords', 'No encontré la ubicación. Pega las coordenadas (ej. 18.4861, -69.9312) o un enlace completo de Google Maps.');
+      res.json(found);
+    } catch (e) { next(e instanceof HttpError ? e : new HttpError(400, 'bad_link', 'No pude leer ese enlace.')); }
+  });
   r.post('/notices', need('admin'), (req, res) =>
     res.json(svc.sendNotice(req.biz, req.body || {}, req.actor)));
 

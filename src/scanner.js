@@ -45,7 +45,7 @@
   }
   function describe(r) {
     const c = r.customer || {}; const n = c.name || 'Cliente';
-    if (r.status === 'visit') return { kind: 'ok', title: 'Visita registrada', text: n + ': ' + c.visits + ' de ' + c.required + (r.rewardUnlocked ? '. ¡Ya tiene su premio!' : ''), redeem: !!r.rewardUnlocked, name: n };
+    if (r.status === 'visit') return { kind: 'ok', title: 'Visita registrada', text: n + ': ' + c.visits + ' de ' + c.required + (r.doubleDay && r.added > 1 ? ' (día especial: +' + r.added + ')' : '') + (r.rewardUnlocked ? '. ¡Ya tiene su premio!' : ''), redeem: !!r.rewardUnlocked, name: n };
     if (r.status === 'too_soon') return { kind: 'warn', title: 'Ya sumó una visita hace poco', text: n + ' podrá sumar otra desde ' + new Date(r.nextAllowedAt).toLocaleString('es-DO') + '.', name: n };
     if (r.status === 'free_available') return { kind: 'warn', title: 'Premio disponible', text: n + ' ya completó sus visitas. ¿Canjear ahora?', redeem: true, name: n };
     return { kind: 'ok', title: 'Listo', text: n, name: n };

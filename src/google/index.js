@@ -67,7 +67,9 @@ function createGoogle({ db, svc, config, fetchFn = fetch, now = () => Date.now()
     return row ? row.message : null;
   }
   function objectBody(b, row) {
+    const prox = svc.proximity(b);
     return {
+      ...(prox.locations.length ? { locations: prox.locations } : {}),
       id: objectId(b, row.id),
       classId: classId(b),
       state: 'ACTIVE',
@@ -83,6 +85,7 @@ function createGoogle({ db, svc, config, fetchFn = fetch, now = () => Date.now()
       textModulesData: [
         { id: 'status', header: 'Estado', body: statusText(b, row) },
         { id: 'aviso', header: 'Último aviso', body: lastNotice(row.id) || 'Sin avisos' },
+        ...svc.extraInfo(b, row, base).map((e) => ({ id: e.key, header: e.label, body: e.text })),
       ],
     };
   }

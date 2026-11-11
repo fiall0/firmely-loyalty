@@ -56,16 +56,20 @@ if(g){g.href='/api/'+slug+'/google-wallet?code='+encodeURIComponent(j.code);g.hi
 }
 
 function caja(b, brand) {
-  const body = `<h1>${esc(b.name)} · Caja</h1><p class="sub">Prueba manual: pega el código del cliente.</p>
+  const body = `<h1>${esc(b.name)} · Caja</h1><p class="sub">Escanea el QR de la tarjeta del cliente para sumar su visita.</p>
 <label>Llave de caja</label><input id="k" type="password" autocomplete="off">
-<label>Código del cliente (QR)</label><input id="c" type="text" autocomplete="off" autocapitalize="off">
-<button id="s">Sumar visita</button><button class="alt" id="r">Canjear premio</button><div class="err" id="e"></div><pre id="o" hidden></pre>`;
+<button id="scan">Escanear QR</button><div class="err" id="e"></div>
+<details style="margin-top:28px;color:var(--muted)"><summary style="cursor:pointer">Ingresar el código a mano</summary>
+<label>Código del cliente</label><input id="c" type="text" autocomplete="off" autocapitalize="off">
+<button class="alt" id="s">Sumar visita</button><button class="alt" id="r">Canjear premio</button><pre id="o" hidden></pre></details>
+<script src="/vendor/scanner.js"></script>`;
   const script = `
 const slug=${JSON.stringify(b.slug)};const $=(i)=>document.getElementById(i);
 $('k').value=sessionStorage.getItem('k')||'';$('c').value=new URLSearchParams(location.search).get('code')||'';
-async function go(path){sessionStorage.setItem('k',$('k').value);$('e').textContent='';
-const r=await fetch('/api/'+slug+'/'+path,{method:'POST',headers:{'content-type':'application/json','x-api-key':$('k').value,'x-actor':'caja'},body:JSON.stringify({code:$('c').value.trim()})});
-const j=await r.json();$('o').hidden=false;$('o').textContent=JSON.stringify(j,null,2);}
+const cfg={slug,headers:()=>({'x-api-key':$('k').value,'x-actor':'caja'})};
+$('scan').onclick=()=>{$('e').textContent='';if(!$('k').value){$('e').textContent='Escribe la llave de caja.';return}sessionStorage.setItem('k',$('k').value);FirmelyScan.open(cfg)};
+async function go(path){sessionStorage.setItem('k',$('k').value);$('e').textContent='';$('o').hidden=false;
+try{const r=await FirmelyScan.call(cfg,path,$('c').value.trim());const d=FirmelyScan.describe(r);$('o').textContent=path==='redeem'?'Premio canjeado. '+d.text:d.title+'. '+d.text}catch(e){$('o').textContent=e.message}}
 $('s').onclick=()=>go('scan');$('r').onclick=()=>go('redeem');`;
   return shell(`${b.name} · Caja`, body, script, b.slug, brand);
 }

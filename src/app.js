@@ -16,6 +16,8 @@ function createApp(svc, { apple, google } = {}) {
   app.get('/admin/:slug', (req, res) => res.type('html').send((() => { const b = svc.getBusiness(req.params.slug); return pages.admin(b, svc.brandOf(b)); })()));
   app.get('/caja/:slug', (req, res) => res.type('html').send((() => { const b = svc.getBusiness(req.params.slug); return pages.caja(b, svc.brandOf(b)); })()));
 
+  app.get('/vendor/scanner.js', (_req, res) => res.sendFile(require('path').join(__dirname, 'scanner.js')));
+  app.get('/vendor/jsqr.js', (_req, res) => res.sendFile(require.resolve('jsqr/dist/jsQR.js')));
   app.get('/health', (_req, res) => res.json({ ok: true }));
 
   // Límite simple para el registro público: 20 por hora por IP.

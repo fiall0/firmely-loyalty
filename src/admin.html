@@ -82,7 +82,7 @@ input[type=text],input[type=tel],input[type=password]{width:100%;height:46px;bor
 
   <div class="cols">
     <div class="card main">
-      <div class="head"><h2>Clientes</h2>
+      <div class="head"><h2>Clientes</h2><button class="alt" id="scanBtn" style="padding:0 18px">Escanear QR</button>
         <div class="search"><input id="q" type="text" placeholder="Buscar por nombre o teléfono" aria-label="Buscar cliente por nombre o teléfono"></div>
       </div>
       <div class="tbl"><div id="rows"></div></div>
@@ -139,6 +139,7 @@ input[type=text],input[type=tel],input[type=password]{width:100%;height:46px;bor
   </div>
 </div>
 
+<script src="/vendor/scanner.js"></script>
 <script>
 const SLUG = "__SLUG__";
 const $ = (id) => document.getElementById(id);
@@ -223,6 +224,7 @@ async function act(path, okText) {
     else show($('eOk'), r.rewardUnlocked ? 'Visita sumada. ¡Ya tiene su ' + info.reward.toLowerCase() + '!' : okText);
   } catch (e) { show($('eErr'), e.message); }
 }
+$('scanBtn').onclick = () => FirmelyScan.open({ slug: SLUG, headers: () => ({ 'x-api-key': KEY, 'x-actor': 'admin' }), onChange: () => Promise.all([loadList(), loadStats()]).catch(() => {}) });
 $('addVisit').onclick = () => act('/scan', 'Visita sumada.');
 $('redeem').onclick = () => act('/redeem', 'Premio canjeado. Su tarjeta vuelve a 0.');
 $('askReset').onclick = () => { $('confirm').hidden = false; $('askReset').hidden = true; };

@@ -73,6 +73,8 @@ $('s').onclick=()=>go('scan');$('r').onclick=()=>go('redeem');`;
 const fs = require('fs');
 const path = require('path');
 const adminTpl = fs.readFileSync(path.join(__dirname, 'admin.html'), 'utf8');
-const admin = (b) => adminTpl.replace(/__NAME__/g, esc(b.name)).replace(/__SLUG__/g, esc(b.slug));
+const admin = (b, brand) => adminTpl
+  .replace(':root{color-scheme:dark}', `:root{color-scheme:dark;--bg:${brand.bg};--fg:${brand.fg};--fgrgb:${[1, 3, 5].map((i) => parseInt(brand.fg.slice(i, i + 2), 16)).join(',')};--panel:${mix(brand.bg, brand.fg, 0.1)};--alt:${mix(brand.bg, brand.fg, 0.2)};--muted:${mix(brand.bg, brand.fg, 0.7)}}`)
+  .replace(/__NAME__/g, esc(b.name)).replace(/__SLUG__/g, esc(b.slug));
 
 module.exports = { registro, caja, admin };

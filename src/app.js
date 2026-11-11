@@ -13,7 +13,7 @@ function createApp(svc, { apple, google } = {}) {
 
   // Páginas del cliente y de caja
   app.get('/r/:slug', (req, res) => res.type('html').send((() => { const b = svc.getBusiness(req.params.slug); return pages.registro(b, { apple: !!apple, google: !!google }, svc.brandOf(b)); })()));
-  app.get('/admin/:slug', (req, res) => res.type('html').send(pages.admin(svc.getBusiness(req.params.slug))));
+  app.get('/admin/:slug', (req, res) => res.type('html').send((() => { const b = svc.getBusiness(req.params.slug); return pages.admin(b, svc.brandOf(b)); })()));
   app.get('/caja/:slug', (req, res) => res.type('html').send((() => { const b = svc.getBusiness(req.params.slug); return pages.caja(b, svc.brandOf(b)); })()));
 
   app.get('/health', (_req, res) => res.json({ ok: true }));

@@ -11,7 +11,11 @@ const CUP =
   '<path d="M10 2v2"/><path d="M14 2v2"/><path d="M6 2v2"/>' +
   '<path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1"/>';
 const DROP = '<path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/>';
-const DRYER = '<path d="M2 3h13a5 5 0 0 1 0 10H2z"/><path d="M11.5 13v8h5v-7"/><path d="M6 6.5v3"/><path d="M9.5 6.5v3"/>';
+const DRYER =
+  '<path d="M5.6 .7A4.7 4.7 0 0 0 5.6 10.1L16.9 8.2V2.4z"/><path d="M16.9 2.4L19.2 1.4V9.3L16.9 8.2"/>' +
+  '<circle cx="4.9" cy="5.4" r="2.1"/><path d="M2.5 9.6L3.8 19.2H7.3V10.2"/><path d="M7.3 11.2h1.1v2.3H7.3"/>' +
+  '<path d="M5.4 19.2c-.6 1.7.6 2.2 0 4.1"/><path d="M20.3 3.4q.8-.8 1.6 0t1.6 0"/><path d="M20.3 5.6q.8-.8 1.6 0t1.6 0"/><path d="M20.3 7.8q.8-.8 1.6 0t1.6 0"/>';
+const STROKE = { dryer: 1.25 };
 const ICONS = { scissors: SCISSORS, cup: CUP, drop: DROP, dryer: DRYER };
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
@@ -19,6 +23,7 @@ function normalizeBrand(brand = {}) {
   const out = { ...DEFAULT_BRAND };
   for (const k of ['bg', 'fg']) if (HEX.test(brand[k] || '')) out[k] = brand[k];
   if (ICONS[brand.icon]) out.icon = brand.icon;
+  for (const k of ['stripBg', 'stamp', 'stampInk']) if (HEX.test(brand[k] || '')) out[k] = brand[k];
   // Nombre de lo que se cuenta (por defecto "visita"): unit/units en la tarjeta, unitsLong en cartel y registro.
   for (const k of ['unit', 'units', 'unitsLong']) {
     const v = String(brand[k] || '').trim().toLowerCase();
@@ -51,7 +56,10 @@ function svg(kind, visits, total, brand, scale, caption) {
   const gridH = 2 * d + gap;
   const x0 = (w - gridW) / 2;
   const y0 = (areaH - gridH) / 2 + (caption ? 2 : 0);
-  const s = (d * 0.42) / 24;
+  const sc = brand.stamp || brand.fg;   // color de los sellos
+  const si = brand.stampInk || brand.bg; // color del dibujo dentro del sello lleno
+  const s = (d * 0.46) / 24;
+  const isw = STROKE[brand.icon] || 2;
   const sw = Math.max(1.5, d * 0.04);
   let body = '';
   for (let i = 0; i < total; i++) {
@@ -61,18 +69,18 @@ function svg(kind, visits, total, brand, scale, caption) {
     const cy = y0 + r * (d + gap) + d / 2;
     const filled = i < n;
     body += filled
-      ? `<circle cx="${cx}" cy="${cy}" r="${d / 2}" fill="${brand.fg}"/>`
-      : `<circle cx="${cx}" cy="${cy}" r="${d / 2 - sw / 2}" fill="none" stroke="${brand.fg}" stroke-opacity="0.55" stroke-width="${sw}"/>`;
-    body += `<g transform="translate(${cx - 12 * s} ${cy - 12 * s}) scale(${s})" fill="none" stroke="${filled ? brand.bg : brand.fg}" ` +
-      `stroke-opacity="${filled ? 1 : 0.55}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[brand.icon] || SCISSORS}</g>`;
+      ? `<circle cx="${cx}" cy="${cy}" r="${d / 2}" fill="${sc}"/>`
+      : `<circle cx="${cx}" cy="${cy}" r="${d / 2 - sw / 2}" fill="none" stroke="${sc}" stroke-opacity="0.55" stroke-width="${sw}"/>`;
+    body += `<g transform="translate(${cx - 12 * s} ${cy - 12 * s}) scale(${s})" fill="none" stroke="${filled ? si : sc}" ` +
+      `stroke-opacity="${filled ? 1 : 0.55}" stroke-width="${isw}" stroke-linecap="round" stroke-linejoin="round">${ICONS[brand.icon] || SCISSORS}</g>`;
   }
   if (caption) {
     const fs = Math.min(12.5, (w - 2 * x0) / (caption.length * 0.53));
     body += `<text x="${x0}" y="${h - 9}" font-family="Helvetica, Arial, DejaVu Sans, sans-serif" font-size="${fs.toFixed(2)}" ` +
-      `fill="${brand.fg}" fill-opacity="0.85">${esc(caption)}</text>`;
+      `fill="${sc}" fill-opacity="0.85">${esc(caption)}</text>`;
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w * scale}" height="${h * scale}" viewBox="0 0 ${w} ${h}">` +
-    `<rect width="${w}" height="${h}" fill="${kind === 'strip' ? mix(brand.bg, brand.fg, 0.08) : brand.bg}"/>${body}</svg>`;
+    `<rect width="${w}" height="${h}" fill="${kind === 'strip' ? (brand.stripBg || mix(brand.bg, brand.fg, 0.08)) : brand.bg}"/>${body}</svg>`;
 }
 
 const cache = new Map();
@@ -82,7 +90,7 @@ async function render(kind, visits, { total = 10, brand, scale = 1, caption = ''
   if (!Number.isInteger(visits) || visits < 0 || visits > total) throw new RangeError('Visitas fuera de rango.');
   if (![1, 2, 3].includes(scale)) throw new RangeError('Escala no válida.');
   const b = normalizeBrand(brand);
-  const key = `${kind}|${visits}|${total}|${b.bg}|${b.fg}|${b.icon}|${scale}|${caption}`;
+  const key = `${kind}|${visits}|${total}|${b.bg}|${b.fg}|${b.icon}|${b.stripBg}|${b.stamp}|${b.stampInk}|${scale}|${caption}`;
   if (cache.has(key)) return cache.get(key);
   const buf = await sharp(Buffer.from(svg(kind, visits, total, b, scale, caption))).png({ compressionLevel: 9 }).toBuffer();
   if (cache.size > 500) cache.clear();
@@ -97,7 +105,7 @@ async function icon(size, brand) {
   const off = (size - 24 * s) / 2;
   const svgText = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">` +
     `<rect width="${size}" height="${size}" fill="${b.bg}"/>` +
-    `<g transform="translate(${off} ${off}) scale(${s})" fill="none" stroke="${b.fg}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[b.icon] || SCISSORS}</g></svg>`;
+    `<g transform="translate(${off} ${off}) scale(${s})" fill="none" stroke="${b.fg}" stroke-width="${STROKE[b.icon] || 2}" stroke-linecap="round" stroke-linejoin="round">${ICONS[b.icon] || SCISSORS}</g></svg>`;
   return sharp(Buffer.from(svgText)).png().toBuffer();
 }
 
@@ -107,4 +115,4 @@ async function appleStripFiles(visits, opts = {}) {
   return { 'strip.png': a, 'strip@2x.png': b, 'strip@3x.png': c };
 }
 
-module.exports = { ICONS, mix, icon, render, appleStripFiles, normalizeBrand, DEFAULT_BRAND, KINDS };
+module.exports = { ICONS, STROKE, mix, icon, render, appleStripFiles, normalizeBrand, DEFAULT_BRAND, KINDS };

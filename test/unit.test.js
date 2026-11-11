@@ -8,7 +8,7 @@ const poster = require('../src/poster');
 test('unidad personalizada (lavadas): textos, 12 sellos y cartel', async () => {
   const svc = createService({ db: open(), secret: 'test' });
   const { business: b } = svc.createBusiness({
-    slug: 'sbc', name: 'Sayonara Beauty Center', reward: 'Lavado y secado gratis', visitsRequired: 12,
+    slug: 'sbc', name: 'Sayonara Beauty', reward: 'Lavado y secado gratis', visitsRequired: 12,
     brand: { bg: '#FFFDF8', fg: '#A9822A', icon: 'drop', unit: 'lavada', units: 'lavadas', unitsLong: 'lavadas de cabello' },
   });
   assert.deepEqual(unitsOf(b), { one: 'lavada', many: 'lavadas', long: 'lavadas de cabello', custom: true });

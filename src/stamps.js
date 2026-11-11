@@ -11,7 +11,8 @@ const CUP =
   '<path d="M10 2v2"/><path d="M14 2v2"/><path d="M6 2v2"/>' +
   '<path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1"/>';
 const DROP = '<path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/>';
-const ICONS = { scissors: SCISSORS, cup: CUP, drop: DROP };
+const DRYER = '<path d="M2 3h13a5 5 0 0 1 0 10H2z"/><path d="M11.5 13v8h5v-7"/><path d="M6 6.5v3"/><path d="M9.5 6.5v3"/>';
+const ICONS = { scissors: SCISSORS, cup: CUP, drop: DROP, dryer: DRYER };
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
 function normalizeBrand(brand = {}) {

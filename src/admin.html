@@ -53,11 +53,16 @@ input[type=text],input[type=tel],input[type=password]{width:100%;height:46px;bor
 .prev .logo{width:34px;height:34px;border-radius:9px}
 .rule{display:flex;justify-content:space-between;font-size:15px}.rule b{font-weight:700}
 .hist{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted)}
-.login{max-width:380px;margin:12vh auto 0;display:flex;flex-direction:column;gap:16px}
+.login{max-width:380px;margin:8vh auto 0;display:flex;flex-direction:column;gap:16px;text-align:center}
+.login .logo{width:150px;height:150px;margin:0 auto 6px;border-radius:50%;overflow:hidden;border:3px solid var(--fg);background:var(--bg)}
+.login .logo img{display:block;width:100%;height:100%;object-fit:cover}
+.login h1{font-size:26px;letter-spacing:.06em;margin:0;font-weight:800;text-transform:uppercase}
+.login .bad{text-align:left}
 </style>
 </head>
 <body>
 <div class="login" id="login">
+  <div class="logo"><img src="/api/__SLUG__/logo.png" alt="Logo de __NAME__" onerror="this.parentNode.hidden=true"></div>
   <h1>__NAME__</h1>
   <span class="muted">Panel del negocio. Ingresa tu llave de administrador.</span>
   <input id="key" type="password" autocomplete="off" placeholder="Llave de administrador">

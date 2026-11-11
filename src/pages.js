@@ -56,7 +56,8 @@ if(g){g.href='/api/'+slug+'/google-wallet?code='+encodeURIComponent(j.code);g.hi
 }
 
 function caja(b, brand) {
-  const body = `<h1>${esc(b.name)} · Caja</h1><p class="sub">Escanea el QR de la tarjeta del cliente para sumar su visita.</p>
+  const body = `<header class="hero"><div class="logo"><img src="/api/${esc(b.slug)}/logo.png" alt="Logo de ${esc(b.name)}" onerror="this.parentNode.hidden=true"></div>
+<h1>${esc(b.name)}</h1><p class="sub">Caja · escanea el QR de la tarjeta del cliente para sumar su visita.</p></header>
 <label>Llave de caja</label><input id="k" type="password" autocomplete="off">
 <button id="scan">Escanear QR</button><div class="err" id="e"></div>
 <details style="margin-top:28px;color:var(--muted)"><summary style="cursor:pointer">Ingresar el código a mano</summary>

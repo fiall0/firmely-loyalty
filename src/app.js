@@ -1,6 +1,7 @@
 const express = require('express');
 const { HttpError } = require('./service');
 const stamps = require('./stamps');
+const poster = require('./poster');
 const pages = require('./pages');
 
 function createApp(svc, { apple, google } = {}) {
@@ -92,6 +93,26 @@ function createApp(svc, { apple, google } = {}) {
       if (/^[a-z0-9-]+$/.test(req.biz.slug) && require('fs').existsSync(file)) return res.sendFile(file);
       res.send(await stamps.icon(256, svc.brandOf(req.biz)));
     } catch (e) { next(e); }
+  });
+
+  // Cartel y QR de registro para imprimir (públicos: solo contienen el enlace de registro).
+  const registerUrl = (req) => `${req.protocol}://${req.get('host')}/r/${req.biz.slug}`;
+  const sendFile = (res, req, type, buf, name) => {
+    res.set('cache-control', 'no-cache').type(type);
+    if (req.query.download) res.set('content-disposition', `attachment; filename="${name}"`);
+    res.send(buf);
+  };
+  r.get('/poster.png', async (req, res, next) => {
+    try {
+      const w = Math.min(2480, Math.max(300, Number(req.query.w) || 2480));
+      sendFile(res, req, 'png', await poster.posterPng(req.biz, svc.brandOf(req.biz), registerUrl(req), { width: w }), `cartel-${req.biz.slug}.png`);
+    } catch (e) { next(e); }
+  });
+  r.get('/qr.png', async (req, res, next) => {
+    try { sendFile(res, req, 'png', await poster.qrPng(registerUrl(req), 1200), `qr-${req.biz.slug}.png`); } catch (e) { next(e); }
+  });
+  r.get('/qr.svg', (req, res, next) => {
+    try { sendFile(res, req, 'image/svg+xml', poster.qrSvg(registerUrl(req), 1200), `qr-${req.biz.slug}.svg`); } catch (e) { next(e); }
   });
 
   // Enlace "Agregar a Google Wallet": redirige al enlace firmado.

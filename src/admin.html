@@ -34,6 +34,7 @@ h1{margin:0;font-family:Montserrat,sans-serif;font-weight:800;font-size:26px;let
 .narrow{max-width:680px}
 .actions{display:flex;gap:10px;align-items:center}
 .scanTop{height:44px;padding:0 20px;border-radius:12px;border:0;background:var(--fg);color:var(--bg);font-weight:700;font-size:14px;cursor:pointer}
+.dl{display:flex;align-items:center;justify-content:center;text-align:center;text-decoration:none;padding:0 16px;min-height:50px}
 .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:40;max-width:90vw;background:var(--fg);color:var(--bg);padding:12px 20px;border-radius:12px;font-weight:700;font-size:14px;box-shadow:0 8px 30px rgba(0,0,0,.35)}
 h2{margin:0;font-size:18px}
 .head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px}
@@ -92,6 +93,7 @@ input[type=text],input[type=tel],input[type=password]{width:100%;height:46px;bor
   <nav class="tabs" id="tabs" role="tablist">
     <button class="on" data-tab="clientes" role="tab">Clientes</button>
     <button data-tab="avisos" role="tab">Avisos</button>
+    <button data-tab="cartel" role="tab">Cartel QR</button>
     <button data-tab="reglas" role="tab">Reglas</button>
   </nav>
 
@@ -154,6 +156,25 @@ input[type=text],input[type=tel],input[type=password]{width:100%;height:46px;bor
     </div>
   </section>
 
+  <section class="panel" data-panel="cartel" hidden>
+    <div class="cols" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr)">
+      <div class="card" style="align-items:center">
+        <img id="posterImg" src="/api/__SLUG__/poster.png?w=700" alt="Vista previa del cartel de __NAME__" style="width:100%;max-width:420px;border-radius:14px;display:block;border:1px solid rgba(var(--fgrgb),.2)">
+      </div>
+      <div class="card">
+        <h2>Cartel y QR de registro</h2>
+        <span class="muted" style="font-size:14px;line-height:1.5">Imprímelo y ponlo en tu local. Tus clientes escanean el QR, se registran y agregan la tarjeta a su billetera digital.</span>
+        <a class="btn dl" href="/api/__SLUG__/poster.png?download=1" download="cartel-__SLUG__.png">Descargar cartel (PNG para imprimir)</a>
+        <a class="alt dl" href="/api/__SLUG__/qr.png?download=1" download="qr-__SLUG__.png">Descargar solo el QR (PNG)</a>
+        <a class="alt dl" href="/api/__SLUG__/qr.svg?download=1" download="qr-__SLUG__.svg">Descargar QR vectorial (SVG)</a>
+        <div class="field"><span>Enlace de registro</span>
+          <div class="two" style="grid-template-columns:1fr auto"><input id="regUrl" type="text" readonly><button class="alt" id="copyUrl" style="padding:0 18px">Copiar</button></div>
+        </div>
+        <span class="small">El cartel está en tamaño A4 (2480 × 3508 px). El QR en SVG se puede imprimir en cualquier tamaño sin perder calidad.</span>
+      </div>
+    </div>
+  </section>
+
   <section class="panel narrow" data-panel="reglas" hidden>
     <div class="card">
       <h2>Reglas del programa</h2>
@@ -189,6 +210,8 @@ function tab(name) {
   try { sessionStorage.setItem('tab', name); } catch (e) { /* sin almacenamiento */ }
 }
 document.getElementById('tabs').onclick = (e) => { const b = e.target.closest('button[data-tab]'); if (b) { tab(b.dataset.tab); if (b.dataset.tab === 'avisos' && typeof refreshCounts === 'function') refreshCounts(); } };
+$('regUrl').value = location.origin + '/r/' + SLUG;
+$('copyUrl').onclick = async () => { try { await navigator.clipboard.writeText($('regUrl').value); toast('Enlace copiado'); } catch (e) { $('regUrl').select(); toast('Selecciona y copia el enlace'); } };
 const show = (el, text) => { el.textContent = text || ''; el.hidden = !text; };
 function ago(iso) {
   if (!iso) return '—';

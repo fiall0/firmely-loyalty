@@ -128,6 +128,10 @@ function createGoogle({ db, svc, config, fetchFn = fetch, now = () => Date.now()
   const swallow = (p) => p.catch((e) => console.error('[google]', e.message));
   const hooks = {
     customerChanged: ({ business, customer, reason }) => reason === 'register' ? undefined : swallow((async () => {
+      if (reason === 'delete') { // el cliente ya no existe: el pase se marca inactivo en su Wallet
+        await call('PATCH', `/loyaltyObject/${encodeURIComponent(objectId(business, customer.id))}`, { state: 'INACTIVE' });
+        return;
+      }
       await patchObject(business, customer.id);
       if (reason === 'visit' || reason === 'redeem') {
         const row = loadRow(business, customer.id);

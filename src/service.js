@@ -239,6 +239,20 @@ function createService({ db, secret, now = () => new Date(), hooks = {} }) {
     return { customer: pub };
   })();
 
+  // Borra al cliente y todo lo suyo (historial, avisos, registros de Apple). El pase que ya esté en su
+  // teléfono deja de actualizarse y de funcionar en la caja. Queda un registro anónimo del borrado.
+  const deleteCustomer = (b, id, actor) => db.transaction(() => {
+    const c = loadCustomer(b, id);
+    const pub = publicCustomer(b, c);
+    for (const t of ['apple_registrations', 'notice_deliveries', 'pass_changes', 'events']) {
+      db.prepare(`DELETE FROM ${t} WHERE customer_id = ?`).run(c.id);
+    }
+    db.prepare('DELETE FROM customers WHERE id = ?').run(c.id);
+    logEvent(b, null, 'delete', { name: c.name }, actor);
+    hook('customerChanged', { business: b, customer: pub, reason: 'delete' });
+    return { deleted: true };
+  })();
+
   function stats(b) {
     const since = new Date(now().getTime() - 7 * DAY).toISOString();
     return {
@@ -294,7 +308,7 @@ function createService({ db, secret, now = () => new Date(), hooks = {} }) {
   return {
     createBusiness, getBusiness, roleFor, codeFor, brandOf, customerFromCode, publicCustomer,
     register, listCustomers, getCustomer, scan, redeem,
-    updateCustomer, resetVisits, stats, sendNotice,
+    updateCustomer, resetVisits, deleteCustomer, stats, sendNotice,
   };
 }
 

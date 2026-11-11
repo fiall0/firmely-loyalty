@@ -119,6 +119,8 @@ function createApp(svc, { apple, google } = {}) {
     res.json(svc.updateCustomer(req.biz, Number(req.params.id), req.body || {}, req.actor)));
   r.post('/customers/:id/reset', need('admin'), (req, res) =>
     res.json(svc.resetVisits(req.biz, Number(req.params.id), req.actor)));
+  r.delete('/customers/:id', need('admin'), (req, res) =>
+    res.json(svc.deleteCustomer(req.biz, Number(req.params.id), req.actor)));
   r.post('/notices', need('admin'), (req, res) =>
     res.json(svc.sendNotice(req.biz, req.body || {}, req.actor)));
 

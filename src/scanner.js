@@ -6,9 +6,29 @@
 .fs-vid video{width:100%;height:100%;object-fit:cover;display:block}
 .fs-frame{position:absolute;inset:18%;border:3px solid #fff;border-radius:18px;box-shadow:0 0 0 999px rgba(0,0,0,.35);pointer-events:none}
 .fs-msg{border-radius:12px;padding:12px 14px;font-size:15px;line-height:1.4;background:var(--alt,#222);border:1.5px solid transparent}
-.fs-msg b{display:block;font-size:17px;margin-bottom:2px}.fs-ok{border-color:#4ADE80}.fs-warn{border-color:#FACC15}.fs-err{border-color:#FF8A80}
+.fs-msg b{display:block;font-size:17px;margin-bottom:2px}.fs-ok{border-color:#4ADE80;animation:fspop .35s ease-out}@keyframes fspop{0%{transform:scale(.92);opacity:.4}60%{transform:scale(1.03)}100%{transform:scale(1);opacity:1}}.fs-warn{border-color:#FACC15}.fs-err{border-color:#FF8A80}
 .fs-row{display:flex;gap:10px}.fs-row button{flex:1;height:46px;border-radius:12px;border:1px solid var(--fg,#fff);background:transparent;color:var(--fg,#fff);font-weight:700;font-size:15px;cursor:pointer;font-family:inherit;margin:0;width:auto}
 .fs-row button.p{background:var(--fg,#fff);color:var(--bg,#000)}`;
+  // Sonidos con WebAudio (sin archivos). El contexto se crea al abrir el escáner, que es un toque del usuario.
+  let actx;
+  function unlockAudio() {
+    try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume(); } catch (e) { /* sin audio */ }
+  }
+  function tone(freq, start, dur, vol, type) {
+    if (!actx) return;
+    const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime + start;
+    o.type = type || 'sine'; o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t + dur + 0.05);
+  }
+  function sound(kind) {
+    unlockAudio();
+    if (kind === 'ok') { tone(988, 0, 0.5, 0.35); tone(1319, 0.11, 0.7, 0.3); }                 // ding
+    else if (kind === 'win') { [784, 988, 1175, 1568].forEach((f, i) => tone(f, i * 0.1, 0.6, 0.3)); } // premio
+    else if (kind === 'warn') { tone(660, 0, 0.18, 0.25, 'triangle'); tone(660, 0.22, 0.18, 0.25, 'triangle'); }
+    else { tone(196, 0, 0.35, 0.3, 'square'); }
+    try { if (navigator.vibrate) navigator.vibrate(kind === 'ok' ? 60 : kind === 'win' ? [60, 50, 60, 50, 120] : [120, 60, 120]); } catch (e) { /* sin vibración */ }
+  }
   let jsqrP;
   const loadJsqr = () => window.jsQR ? Promise.resolve() : (jsqrP = jsqrP || new Promise((ok, ko) => {
     const s = document.createElement('script'); s.src = '/vendor/jsqr.js'; s.onload = ok;
@@ -33,6 +53,7 @@
 
   function open(cfg) {
     if (document.querySelector('.fs-ov')) return;
+    unlockAudio();
     if (!document.getElementById('fs-css')) { const st = document.createElement('style'); st.id = 'fs-css'; st.textContent = CSS; document.head.appendChild(st); }
     const ov = document.createElement('div'); ov.className = 'fs-ov';
     ov.innerHTML = '<div class="fs-box"><h3>Escanear QR del cliente</h3><div class="fs-vid"><video playsinline muted></video><div class="fs-frame"></div></div><div class="fs-msg" id="fs-m">Apunta la cámara al QR de la tarjeta en el celular del cliente.</div><div class="fs-row" id="fs-a"></div><div class="fs-row"><button id="fs-x">Cerrar</button></div></div>';
@@ -49,20 +70,20 @@
 
     async function handle(data) {
       paused = true; last = data; lastAt = Date.now(); clearActs();
-      if (!data.startsWith(cfg.slug + '.')) { setMsg('err', 'QR no válido', 'Ese código no es de esta tarjeta.'); return resume(2500); }
+      if (!data.startsWith(cfg.slug + '.')) { sound('err'); setMsg('err', 'QR no válido', 'Ese código no es de esta tarjeta.'); return resume(2500); }
       try {
         const r = await call(cfg, 'scan', data); const d = describe(r);
-        setMsg(d.kind, d.title, d.text); if (cfg.onChange) cfg.onChange();
+        sound(d.redeem && d.kind === 'ok' ? 'win' : d.kind); setMsg(d.kind, d.title, d.text); if (cfg.onChange) cfg.onChange();
         if (d.redeem) {
           btn('Canjear premio', true, async () => {
             clearActs();
-            try { await call(cfg, 'redeem', data); setMsg('ok', 'Premio canjeado', d.name + ': su tarjeta vuelve a 0.'); if (cfg.onChange) cfg.onChange(); }
-            catch (e) { setMsg('err', 'No se pudo canjear', e.message); }
+            try { await call(cfg, 'redeem', data); sound('win'); setMsg('ok', 'Premio canjeado', d.name + ': su tarjeta vuelve a 0.'); if (cfg.onChange) cfg.onChange(); }
+            catch (e) { sound('err'); setMsg('err', 'No se pudo canjear', e.message); }
             resume(2800);
           });
           btn('Ahora no', false, () => { clearActs(); resume(0); });
         } else resume(2800);
-      } catch (e) { setMsg('err', 'No se pudo registrar', e.message); resume(3000); }
+      } catch (e) { sound('err'); setMsg('err', 'No se pudo registrar', e.message); resume(3000); }
     }
     function tick() {
       if (closed) return; timer = setTimeout(tick, 150);

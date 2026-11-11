@@ -99,4 +99,4 @@ async function appleStripFiles(visits, opts = {}) {
   return { 'strip.png': a, 'strip@2x.png': b, 'strip@3x.png': c };
 }
 
-module.exports = { mix, icon, render, appleStripFiles, normalizeBrand, DEFAULT_BRAND, KINDS };
+module.exports = { ICONS, mix, icon, render, appleStripFiles, normalizeBrand, DEFAULT_BRAND, KINDS };

@@ -1,9 +1,12 @@
 const { mix, ICONS } = require('./stamps');
+const { unitsOf } = require('./text');
+const isLight = (hex) => (0.299 * parseInt(hex.slice(1, 3), 16) + 0.587 * parseInt(hex.slice(3, 5), 16) + 0.114 * parseInt(hex.slice(5, 7), 16)) / 255 > 0.6;
+const statusVars = (brand) => (isLight(brand.bg) ? '--okc:#1E8E4E;--badc:#C0392B' : '--okc:#4ADE80;--badc:#FF8A80');
 // Páginas mínimas servidas por el propio backend: registro del cliente y caja (prueba manual).
 const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 const STYLE = (brand) => `
-:root{--bg:${brand.bg};--fg:${brand.fg};--panel:${mix(brand.bg, brand.fg, 0.1)};--line:${mix(brand.bg, brand.fg, 0.25)};--muted:${mix(brand.bg, brand.fg, 0.7)};--alt:${mix(brand.bg, brand.fg, 0.16)}}
+:root{color-scheme:${isLight(brand.bg) ? 'light' : 'dark'};--bg:${brand.bg};--fg:${brand.fg};--panel:${mix(brand.bg, brand.fg, 0.1)};--line:${mix(brand.bg, brand.fg, 0.25)};--muted:${mix(brand.bg, brand.fg, 0.7)};--alt:${mix(brand.bg, brand.fg, 0.16)}}
 :root{color-scheme:dark}*{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font:16px -apple-system,system-ui,sans-serif;padding:24px 16px;display:flex;justify-content:center}
 main{width:100%;max-width:420px}h1{font-size:24px;letter-spacing:.12em;text-transform:uppercase;margin:0 0 4px}
@@ -11,7 +14,7 @@ p.sub{color:var(--muted);margin:0 0 24px}label{display:block;font-size:13px;colo
 input[type=text],input[type=tel],input[type=password]{width:100%;padding:14px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:17px}
 .check{display:flex;gap:10px;align-items:flex-start;margin:18px 0;color:var(--muted);font-size:14px}.check input{margin-top:3px;width:20px;height:20px}
 button,a.btn{display:block;width:100%;text-align:center;padding:15px;border-radius:12px;border:0;background:var(--fg);color:var(--bg);font-size:17px;font-weight:600;text-decoration:none;margin-top:12px}
-button.alt{background:var(--alt);color:var(--fg)}.err{color:#ff6b6b;margin-top:12px;min-height:20px}
+button.alt{background:var(--alt);color:var(--fg)}.err{color:var(--badc);margin-top:12px;min-height:20px}
 header.hero{text-align:center;margin:8px 0 28px}
 .hero .logo{width:150px;height:150px;margin:0 auto 22px;border-radius:50%;overflow:hidden;border:3px solid var(--fg);background:var(--bg)}
 .hero .logo img{display:block;width:100%;height:100%;object-fit:cover}
@@ -29,7 +32,7 @@ function registro(b, on, brand) {
   const body = `<header class="hero">
 <div class="logo"><img src="/api/${esc(b.slug)}/logo.png" alt="Logo de ${esc(b.name)}" onerror="this.parentNode.hidden=true"></div>
 <h1>Tarjeta de fidelidad</h1>
-<p class="sub">${b.visits_required} visitas = ${esc(b.reward.toLowerCase())}</p>
+<p class="sub">${b.visits_required} ${esc(unitsOf(b).long)} = ${esc(b.reward.toLowerCase())}</p>
 </header>
 <form id="f"><label>Nombre</label><input id="n" type="text" autocomplete="name" required>
 <label>Teléfono</label><input id="p" type="tel" autocomplete="tel" inputmode="tel" required>
@@ -79,7 +82,7 @@ const fs = require('fs');
 const path = require('path');
 const adminTpl = fs.readFileSync(path.join(__dirname, 'admin.html'), 'utf8');
 const admin = (b, brand) => adminTpl
-  .replace(':root{color-scheme:dark}', `:root{color-scheme:dark;--bg:${brand.bg};--fg:${brand.fg};--fgrgb:${[1, 3, 5].map((i) => parseInt(brand.fg.slice(i, i + 2), 16)).join(',')};--panel:${mix(brand.bg, brand.fg, 0.1)};--alt:${mix(brand.bg, brand.fg, 0.2)};--muted:${mix(brand.bg, brand.fg, 0.7)}}`)
+  .replace(':root{color-scheme:dark}', `:root{color-scheme:${isLight(brand.bg) ? 'light' : 'dark'};${statusVars(brand)};--bg:${brand.bg};--fg:${brand.fg};--fgrgb:${[1, 3, 5].map((i) => parseInt(brand.fg.slice(i, i + 2), 16)).join(',')};--panel:${mix(brand.bg, brand.fg, 0.1)};--alt:${mix(brand.bg, brand.fg, 0.2)};--muted:${mix(brand.bg, brand.fg, 0.7)}}`)
   .replace('__STAMP_PATHS__', ICONS[brand.icon] || ICONS.scissors)
   .replace(/__NAME__/g, esc(b.name)).replace(/__SLUG__/g, esc(b.slug));
 

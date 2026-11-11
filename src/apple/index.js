@@ -9,7 +9,7 @@ const express = require('express');
 const { zipSync } = require('fflate');
 const sharp = require('sharp');
 const stamps = require('../stamps');
-const { statusText } = require('../text');
+const { statusText, unitsOf } = require('../text');
 const { HttpError } = require('../service');
 
 const sha1 = (buf) => crypto.createHash('sha1').update(buf).digest('hex');
@@ -75,8 +75,8 @@ function createApple({ db, svc, secret, config, push }) {
   function captionText(b, c) {
     const rem = b.visits_required - c.visits;
     if (rem <= 0) return `¡Tu ${b.reward.toLowerCase()} está listo!`;
-    if (c.visits === 0) return `Junta ${b.visits_required} visitas y gana tu ${b.reward.toLowerCase()}`;
-    return `Te faltan ${rem} ${rem === 1 ? 'visita' : 'visitas'} para tu ${b.reward.toLowerCase()}`;
+    if (c.visits === 0) return `Junta ${b.visits_required} ${unitsOf(b).many} y gana tu ${b.reward.toLowerCase()}`;
+    return `Te faltan ${rem} ${rem === 1 ? unitsOf(b).one : unitsOf(b).many} para tu ${b.reward.toLowerCase()}`;
   }
 
   function lastNotice(customerId) {
@@ -122,7 +122,7 @@ function createApple({ db, svc, secret, config, push }) {
           { key: 'aviso', label: 'Último aviso', value: lastNotice(row.id) || 'Sin avisos', changeMessage: '%@' },
           { key: 'member_id', label: 'ID de miembro', value: String(row.id).padStart(6, '0') },
           { key: 'terms', label: 'Cómo funciona',
-            value: `Muestra este código en caja en cada visita. A las ${required} visitas ganas: ${b.reward}.` },
+            value: `Muestra este código en caja en cada ${unitsOf(b).one}. A las ${required} ${unitsOf(b).many} ganas: ${b.reward}.` },
         ],
       },
     };

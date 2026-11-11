@@ -4,6 +4,7 @@ const path = require('path');
 const sharp = require('sharp');
 const QRCode = require('qrcode');
 const stamps = require('./stamps');
+const { unitsOf } = require('./text');
 
 const xml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const FONT = "'Liberation Sans','DejaVu Sans',Arial,Helvetica,sans-serif";
@@ -41,6 +42,8 @@ async function posterPng(b, brand, url, { width = 2480, logosDir = path.join(__d
   const m = 4, qrPx = 640, pad = 50;
   const logo = (await logoBuffer(b, brand, logosDir)).toString('base64');
   const reward = String(b.reward || '').toLowerCase();
+  const line = `${b.visits_required} ${unitsOf(b).long} = ${reward}`;
+  const lineSize = Math.min(60, Math.floor(1060 / (line.length * 0.56)));
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
 <defs><clipPath id="c"><circle cx="${W / 2}" cy="270" r="150"/></clipPath></defs>
 <rect width="${W}" height="${H}" fill="${brand.bg}"/>
@@ -48,8 +51,8 @@ async function posterPng(b, brand, url, { width = 2480, logosDir = path.join(__d
 <circle cx="${W / 2}" cy="270" r="157" fill="none" stroke="${brand.fg}" stroke-width="6"/>
 <text x="${W / 2}" y="${520 + nameSize * 0.35}" text-anchor="middle" font-family="${FONT}" font-weight="700" font-size="${nameSize}" letter-spacing="10" fill="${brand.fg}">${xml(name)}</text>
 <text x="${W / 2}" y="650" text-anchor="middle" font-family="${FONT}" font-size="52" fill="${brand.fg}">Tarjeta de fidelidad</text>
-<text x="${W / 2}" y="735" text-anchor="middle" font-family="${FONT}" font-weight="700" font-size="60" fill="${brand.fg}">${xml(`${b.visits_required} visitas = ${reward}`)}</text>
-<rect x="${W / 2 - qrPx / 2 - pad}" y="860" width="${qrPx + 2 * pad}" height="${qrPx + 2 * pad}" rx="36" fill="#fff"/>
+<text x="${W / 2}" y="735" text-anchor="middle" font-family="${FONT}" font-weight="700" font-size="${lineSize}" fill="${brand.fg}">${xml(line)}</text>
+<rect x="${W / 2 - qrPx / 2 - pad}" y="860" width="${qrPx + 2 * pad}" height="${qrPx + 2 * pad}" rx="36" fill="#fff" stroke="${brand.fg}" stroke-width="5"/>
 <svg x="${W / 2 - qrPx / 2}" y="${860 + pad}" width="${qrPx}" height="${qrPx}" viewBox="${-m} ${-m} ${n + 2 * m} ${n + 2 * m}" shape-rendering="crispEdges"><path d="${d}" fill="#000"/></svg>
 <text x="${W / 2}" y="1665" text-anchor="middle" font-family="${FONT}" font-size="42" fill="${brand.fg}">Escanea y agrega tu tarjeta a tu billetera digital</text>
 </svg>`;

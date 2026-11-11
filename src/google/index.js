@@ -1,7 +1,7 @@
 // Google Wallet: clase y objeto de lealtad, enlace "Agregar a Google Wallet" (JWT firmado) y avisos por la API.
 const crypto = require('crypto');
 const { HttpError } = require('../service');
-const { statusText } = require('../text');
+const { statusText, unitsOf } = require('../text');
 
 const API = 'https://walletobjects.googleapis.com/walletobjects/v1';
 const SCOPE = 'https://www.googleapis.com/auth/wallet_object.issuer';
@@ -74,11 +74,11 @@ function createGoogle({ db, svc, config, fetchFn = fetch, now = () => Date.now()
       accountId: `${b.slug}-${row.id}`,
       accountName: row.name,
       barcode: { type: 'QR_CODE', value: svc.codeFor(b.slug, row.id) },
-      loyaltyPoints: { label: 'Visitas', balance: { string: `${row.visits} de ${b.visits_required}` } },
+      loyaltyPoints: { label: unitsOf(b).many.charAt(0).toUpperCase() + unitsOf(b).many.slice(1), balance: { string: `${row.visits} de ${b.visits_required}` } },
       secondaryLoyaltyPoints: { label: 'Recompensa', balance: { string: b.reward } },
       heroImage: {
         sourceUri: { uri: `${base}/api/${b.slug}/stamp/${Math.min(row.visits, b.visits_required)}.png?kind=hero&r=${row.visits}` },
-        contentDescription: text(`${row.visits} de ${b.visits_required} visitas`),
+        contentDescription: text(`${row.visits} de ${b.visits_required} ${unitsOf(b).many}`),
       },
       textModulesData: [
         { id: 'status', header: 'Estado', body: statusText(b, row) },

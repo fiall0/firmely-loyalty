@@ -44,15 +44,15 @@ const svc = createService({ db, secret: codeSecret, hooks: {
   notice: (p) => live.notice(p),
 } });
 // SEED_BUSINESSES="undercut:Undercut,agape:Ágape|#24417D|#FFFFFF|cup|Café gratis" crea los negocios que falten
-// (slug:Nombre[|colorFondo|colorTexto|icono(scissors/cup)|premio[|visitas]]) y muestra sus llaves una sola vez.
+// (slug:Nombre[|colorFondo|colorTexto|icono(scissors/cup/drop)|premio[|visitas[|unidad|unidades|unidades largas]]]) y muestra sus llaves una sola vez.
 for (const item of (process.env.SEED_BUSINESSES || '').split(',').map((x) => x.trim()).filter(Boolean)) {
-  const [head, bg, fg, icon, reward, visits] = item.split('|').map((x) => x.trim());
+  const [head, bg, fg, icon, reward, visits, unit, units, unitsLong] = item.split('|').map((x) => x.trim());
   const [slug, ...rest] = head.split(':');
   try {
     const { keys } = svc.createBusiness({
       slug: slug.trim(), name: rest.join(':').trim() || slug.trim(),
       reward: reward || undefined, visitsRequired: visits ? Number(visits) : undefined,
-      brand: { bg, fg, icon },
+      brand: { bg, fg, icon, unit, units, unitsLong },
     });
     console.log(`Negocio "${slug}" creado. Guarda estas llaves, no se vuelven a mostrar:`);
     console.log(`  caja  (x-api-key): ${keys.staff}`);

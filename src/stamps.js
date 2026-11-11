@@ -10,13 +10,19 @@ const SCISSORS =
 const CUP =
   '<path d="M10 2v2"/><path d="M14 2v2"/><path d="M6 2v2"/>' +
   '<path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1"/>';
-const ICONS = { scissors: SCISSORS, cup: CUP };
+const DROP = '<path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/>';
+const ICONS = { scissors: SCISSORS, cup: CUP, drop: DROP };
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
 function normalizeBrand(brand = {}) {
   const out = { ...DEFAULT_BRAND };
   for (const k of ['bg', 'fg']) if (HEX.test(brand[k] || '')) out[k] = brand[k];
   if (ICONS[brand.icon]) out.icon = brand.icon;
+  // Nombre de lo que se cuenta (por defecto "visita"): unit/units en la tarjeta, unitsLong en cartel y registro.
+  for (const k of ['unit', 'units', 'unitsLong']) {
+    const v = String(brand[k] || '').trim().toLowerCase();
+    if (v && v.length <= 30 && /^[a-záéíóúüñ ]+$/.test(v)) out[k] = v;
+  }
   return out;
 }
 
@@ -60,7 +66,8 @@ function svg(kind, visits, total, brand, scale, caption) {
       `stroke-opacity="${filled ? 1 : 0.55}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[brand.icon] || SCISSORS}</g>`;
   }
   if (caption) {
-    body += `<text x="${x0}" y="${h - 9}" font-family="Helvetica, Arial, DejaVu Sans, sans-serif" font-size="12.5" ` +
+    const fs = Math.min(12.5, (w - 2 * x0) / (caption.length * 0.53));
+    body += `<text x="${x0}" y="${h - 9}" font-family="Helvetica, Arial, DejaVu Sans, sans-serif" font-size="${fs.toFixed(2)}" ` +
       `fill="${brand.fg}" fill-opacity="0.85">${esc(caption)}</text>`;
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w * scale}" height="${h * scale}" viewBox="0 0 ${w} ${h}">` +

@@ -50,11 +50,11 @@ input[type=text],input[type=tel],input[type=password]{width:100%;height:46px;bor
 .num{font-family:Montserrat,sans-serif;font-weight:800;font-size:22px;min-width:84px;text-align:center}
 .btn{height:50px;border-radius:14px;border:0;background:var(--fg);color:var(--bg);font-weight:700;font-size:15px;cursor:pointer}
 .btn:disabled{opacity:.5;cursor:default}
-.danger{height:46px;border-radius:12px;border:1.5px solid #FF8A80;background:transparent;color:#FF8A80;font-weight:700;font-size:15px;cursor:pointer}
-.confirm{border:1.5px solid #FF8A80;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:12px;font-size:14px;line-height:1.45}
+.danger{height:46px;border-radius:12px;border:1.5px solid var(--badc);background:transparent;color:var(--badc);font-weight:700;font-size:15px;cursor:pointer}
+.confirm{border:1.5px solid var(--badc);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:12px;font-size:14px;line-height:1.45}
 .confirm div{display:flex;gap:10px}.confirm button{flex:1;height:44px;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer}
-.ok{background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.5);border-radius:12px;padding:12px 14px;font-size:14px;color:#4ADE80;line-height:1.4}
-.bad{background:rgba(255,138,128,.12);border:1px solid rgba(255,138,128,.5);border-radius:12px;padding:12px 14px;font-size:14px;color:#FF8A80;line-height:1.4}
+.ok{background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.5);border-radius:12px;padding:12px 14px;font-size:14px;color:var(--okc);line-height:1.4}
+.bad{background:rgba(255,138,128,.12);border:1px solid rgba(255,138,128,.5);border-radius:12px;padding:12px 14px;font-size:14px;color:var(--badc);line-height:1.4}
 .aud{display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:48px;padding:0 14px;border-radius:12px;border:1.5px solid rgba(var(--fgrgb),.25);background:transparent;color:var(--fg);font-size:14px;text-align:left;cursor:pointer}
 .aud.on{border-color:var(--fg);background:rgba(var(--fgrgb),.12)}
 .prev{background:var(--alt);border-radius:18px;padding:12px 14px;display:flex;gap:10px;align-items:flex-start}
@@ -130,12 +130,12 @@ input[type=text],input[type=tel],input[type=password]{width:100%;height:46px;bor
           <button class="danger" id="askReset">Reiniciar visitas a 0</button>
           <div class="confirm" id="confirm" hidden>
             <span>¿Reiniciar las visitas de <b id="cName"></b> a 0? Los sellos de su pase se vacían.</span>
-            <div><button id="doReset" style="border:0;background:#FF8A80;color:#000">Sí, reiniciar</button><button id="noReset" style="border:1px solid rgba(var(--fgrgb),.3);background:transparent;color:var(--fg)">Cancelar</button></div>
+            <div><button id="doReset" style="border:0;background:var(--badc);color:#000">Sí, reiniciar</button><button id="noReset" style="border:1px solid rgba(var(--fgrgb),.3);background:transparent;color:var(--fg)">Cancelar</button></div>
           </div>
           <button class="danger" id="askDelete">Eliminar cliente</button>
           <div class="confirm" id="confirmDel" hidden>
             <span>¿Eliminar a <b id="dName"></b>? Se borran sus datos y su historial. Su tarjeta deja de funcionar y no se puede deshacer.</span>
-            <div><button id="doDelete" style="border:0;background:#FF8A80;color:#000">Sí, eliminar</button><button id="noDelete" style="border:1px solid rgba(var(--fgrgb),.3);background:transparent;color:var(--fg)">Cancelar</button></div>
+            <div><button id="doDelete" style="border:0;background:var(--badc);color:#000">Sí, eliminar</button><button id="noDelete" style="border:1px solid rgba(var(--fgrgb),.3);background:transparent;color:var(--fg)">Cancelar</button></div>
           </div>
         </div>
       </div>

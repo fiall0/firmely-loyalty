@@ -75,7 +75,7 @@ function createApple({ db, svc, secret, config, push }) {
   function captionText(b, c) {
     const rem = b.visits_required - c.visits;
     if (rem <= 0) return `¡Tu ${b.reward.toLowerCase()} está listo!`;
-    if (c.visits === 0) return `Junta ${b.visits_required} visitas y tu ${b.reward.toLowerCase()} es gratis`;
+    if (c.visits === 0) return `Junta ${b.visits_required} visitas y gana tu ${b.reward.toLowerCase()}`;
     return `Te faltan ${rem} ${rem === 1 ? 'visita' : 'visitas'} para tu ${b.reward.toLowerCase()}`;
   }
 

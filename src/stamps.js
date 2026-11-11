@@ -2,16 +2,21 @@
 // Apple: "strip" 375x123 (1x/2x/3x). Google: "hero" 1032x336.
 const sharp = require('sharp');
 
-const DEFAULT_BRAND = { bg: '#000000', fg: '#FFFFFF' };
+const DEFAULT_BRAND = { bg: '#000000', fg: '#FFFFFF', icon: 'scissors' };
 const KINDS = { strip: { w: 375, h: 123 }, hero: { w: 1032, h: 336 } };
 const SCISSORS =
   '<circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/>' +
   '<circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/>';
+const CUP =
+  '<path d="M10 2v2"/><path d="M14 2v2"/><path d="M6 2v2"/>' +
+  '<path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1"/>';
+const ICONS = { scissors: SCISSORS, cup: CUP };
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
 function normalizeBrand(brand = {}) {
   const out = { ...DEFAULT_BRAND };
   for (const k of ['bg', 'fg']) if (HEX.test(brand[k] || '')) out[k] = brand[k];
+  if (ICONS[brand.icon]) out.icon = brand.icon;
   return out;
 }
 
@@ -52,7 +57,7 @@ function svg(kind, visits, total, brand, scale, caption) {
       ? `<circle cx="${cx}" cy="${cy}" r="${d / 2}" fill="${brand.fg}"/>`
       : `<circle cx="${cx}" cy="${cy}" r="${d / 2 - sw / 2}" fill="none" stroke="${brand.fg}" stroke-opacity="0.55" stroke-width="${sw}"/>`;
     body += `<g transform="translate(${cx - 12 * s} ${cy - 12 * s}) scale(${s})" fill="none" stroke="${filled ? brand.bg : brand.fg}" ` +
-      `stroke-opacity="${filled ? 1 : 0.55}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${SCISSORS}</g>`;
+      `stroke-opacity="${filled ? 1 : 0.55}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[brand.icon] || SCISSORS}</g>`;
   }
   if (caption) {
     body += `<text x="${x0}" y="${h - 9}" font-family="Helvetica, Arial, DejaVu Sans, sans-serif" font-size="12.5" ` +
@@ -69,7 +74,7 @@ async function render(kind, visits, { total = 10, brand, scale = 1, caption = ''
   if (!Number.isInteger(visits) || visits < 0 || visits > total) throw new RangeError('Visitas fuera de rango.');
   if (![1, 2, 3].includes(scale)) throw new RangeError('Escala no válida.');
   const b = normalizeBrand(brand);
-  const key = `${kind}|${visits}|${total}|${b.bg}|${b.fg}|${scale}|${caption}`;
+  const key = `${kind}|${visits}|${total}|${b.bg}|${b.fg}|${b.icon}|${scale}|${caption}`;
   if (cache.has(key)) return cache.get(key);
   const buf = await sharp(Buffer.from(svg(kind, visits, total, b, scale, caption))).png({ compressionLevel: 9 }).toBuffer();
   if (cache.size > 500) cache.clear();
@@ -84,7 +89,7 @@ async function icon(size, brand) {
   const off = (size - 24 * s) / 2;
   const svgText = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">` +
     `<rect width="${size}" height="${size}" fill="${b.bg}"/>` +
-    `<g transform="translate(${off} ${off}) scale(${s})" fill="none" stroke="${b.fg}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${SCISSORS}</g></svg>`;
+    `<g transform="translate(${off} ${off}) scale(${s})" fill="none" stroke="${b.fg}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[b.icon] || SCISSORS}</g></svg>`;
   return sharp(Buffer.from(svgText)).png().toBuffer();
 }
 
@@ -94,4 +99,4 @@ async function appleStripFiles(visits, opts = {}) {
   return { 'strip.png': a, 'strip@2x.png': b, 'strip@3x.png': c };
 }
 
-module.exports = { icon, render, appleStripFiles, normalizeBrand, DEFAULT_BRAND, KINDS };
+module.exports = { mix, icon, render, appleStripFiles, normalizeBrand, DEFAULT_BRAND, KINDS };

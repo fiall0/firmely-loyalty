@@ -21,10 +21,11 @@ function createApp(svc, { apple, google, firmelyKey, adminHost = process.env.ADM
     const onAdmin = req.hostname.toLowerCase() === ah;
     if (!onAdmin) return /^\/firmely(\/|$)/.test(req.path) ? res.status(404).json({ error: 'not_found' }) : next();
     if (req.path === '/' || req.path === '/firmely') return res.sendFile(panelFile);
-    if (/^\/firmely\/api(\/|$)/.test(req.path)) return next();
+    if (/^\/firmely\/(api|assets)(\/|$)/.test(req.path)) return next();
     if (req.method === 'GET' && /^\/api\/[a-z0-9-]+\/(logo\.png|poster\.png|qr\.png|qr\.svg|stamp\/\d+\.png)$/.test(req.path)) return next();
     return res.status(404).json({ error: 'not_found' });
   });
+  app.use('/firmely/assets', express.static(require('path').join(__dirname, 'brand'), { maxAge: '1d', index: false }));
   app.use('/firmely/api', createFirmelyRouter(svc, { key: firmelyKey, loyaltyUrl }));
   app.get('/firmely', (_req, res) => res.sendFile(panelFile));
   app.use(express.json({ limit: '10kb' }));

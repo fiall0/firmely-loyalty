@@ -33,7 +33,7 @@ test('panel apagado sin llave (503) y con llave incorrecta (401)', async () => {
     assert.equal((await on.call('GET', '/firmely/api/businesses')).status, 200);
     const page = await fetch(on.url + '/firmely');
     assert.equal(page.status, 200);
-    assert.match(await page.text(), /Panel Firmely/);
+    assert.match(await page.text(), /<title>Firmely · Panel<\/title>/);
   } finally { on.server.close(); }
 });
 
@@ -107,7 +107,7 @@ test('ADMIN_HOST: el panel solo vive en su dominio', async () => {
   try {
     let r = await get('/', 'admin.firmely.io');
     assert.equal(r.status, 200);
-    assert.match(r.body, /Panel Firmely/);
+    assert.match(r.body, /<title>Firmely · Panel<\/title>/);
     assert.equal((await get('/firmely/api/businesses', 'admin.firmely.io', { 'x-firmely-key': KEY })).status, 200);
     assert.equal((await get('/health', 'admin.firmely.io')).status, 404);
     assert.equal((await get('/firmely', 'loyalty.firmely.io')).status, 404);

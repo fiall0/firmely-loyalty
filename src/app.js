@@ -91,8 +91,10 @@ function createApp(svc, { apple, google, firmelyKey, adminHost = process.env.ADM
         if (!mp || ![1, 2, 3].includes(scale)) throw new HttpError(400, 'bad_stamp', 'Imagen no válida.');
         const pts = Number(mp[1]);
         const next = cfg.points.rewards.find((r) => r.cost > pts);
-        const label = next ? `${next.cost - pts} pts para ${next.name}` : '¡Ya puedes canjear tu premio!';
-        const png = await stamps.renderPoints(kind, pts, { goal: next ? next.cost : 0, label, brand: svc.brandOf(req.biz), scale });
+        const brand = svc.brandOf(req.biz);
+        const lf = require('./logos').find(req.biz.slug);
+        const png = await stamps.renderPoints(kind, pts, { goal: next ? next.cost : 0, name: req.biz.name, brand, scale,
+          logo: lf ? await stamps.circleLogo(lf, 240, brand.fg) : null });
         return res.set({ 'content-type': 'image/png', 'cache-control': 'public, max-age=86400' }).send(png);
       }
       const m = /^(\d{1,2})(?:\.png)?$/.exec(req.params.file);

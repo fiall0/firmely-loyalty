@@ -15,6 +15,7 @@ const DRYER =
   '<path d="M5.6 .7A4.7 4.7 0 0 0 5.6 10.1L16.9 8.2V2.4z"/><path d="M16.9 2.4L19.2 1.4V9.3L16.9 8.2"/>' +
   '<circle cx="4.9" cy="5.4" r="2.1"/><path d="M2.5 9.6L3.8 19.2H7.3V10.2"/><path d="M7.3 11.2h1.1v2.3H7.3"/>' +
   '<path d="M5.4 19.2c-.6 1.7.6 2.2 0 4.1"/><path d="M20.3 3.4q.8-.8 1.6 0t1.6 0"/><path d="M20.3 5.6q.8-.8 1.6 0t1.6 0"/><path d="M20.3 7.8q.8-.8 1.6 0t1.6 0"/>';
+const POINTS_H = 176;
 const STROKE = { dryer: 1.25 };
 const ICONS = { scissors: SCISSORS, cup: CUP, drop: DROP, dryer: DRYER };
 const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -98,36 +99,50 @@ async function render(kind, visits, { total = 10, brand, scale = 1, caption = ''
   return buf;
 }
 
-/** Imagen de puntos: saldo grande + barra de avance hacia el siguiente premio. */
-function pointsSvg(kind, points, goal, brand, scale, label) {
+/** Imagen de puntos: logo y nombre centrados arriba, saldo grande al centro y barra fina de avance. */
+function pointsSvg(kind, points, goal, brand, scale, { name = '', logo = null } = {}) {
   const spec = KINDS[kind];
   if (!spec) throw new RangeError('Tipo de imagen no válido.');
-  const { w, h } = spec;
+  const w = kind === 'strip' ? 375 : spec.w;
+  const h = kind === 'strip' ? POINTS_H : spec.h;
+  const k = h / POINTS_H; // diseño base 375x176
   const sc = brand.stamp || brand.fg;
   const bg = kind === 'strip' ? (brand.stripBg || mix(brand.bg, brand.fg, 0.08)) : brand.bg;
-  const pad = w * 0.07;
-  const num = Number(points).toLocaleString('en-US');
-  const big = Math.min(h * 0.46, (w * 0.5) / Math.max(2, num.length * 0.62));
-  const pct = goal ? Math.max(0, Math.min(1, points / goal)) : 1;
-  const barY = h * 0.72, barH = Math.max(6, h * 0.085), barW = w - pad * 2;
   const font = 'font-family="Helvetica, Arial, DejaVu Sans, sans-serif"';
-  const fs = Math.min(h * 0.115, (barW) / Math.max(8, label.length * 0.56));
+  const num = Number(points).toLocaleString('en-US');
+  const pct = goal ? Math.max(0, Math.min(1, points / goal)) : 1;
+  const nm = String(name).toUpperCase();
+  const nameSize = Math.min(13 * k, (w * 0.8) / Math.max(6, nm.length * 0.66));
+  const logoD = 84 * k;
+  const barW = Math.min(w * 0.2, 72 * k), barH = Math.max(3, 3 * k);
+  const head = (logo ? `<image href="data:image/png;base64,${logo.toString('base64')}" x="${(w - logoD) / 2}" y="${6 * k}" width="${logoD}" height="${logoD}"/>` : '') +
+    (nm ? `<text x="${w / 2}" y="${(logo ? 108 : 40) * k}" text-anchor="middle" ${font} font-size="${nameSize.toFixed(2)}" font-weight="700" letter-spacing="1.5" fill="${brand.fg}">${esc(nm)}</text>` : '');
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w * scale}" height="${h * scale}" viewBox="0 0 ${w} ${h}">` +
-    `<rect width="${w}" height="${h}" fill="${bg}"/>` +
-    `<text x="${pad}" y="${h * 0.5}" ${font} font-size="${big}" font-weight="700" fill="${sc}">${esc(num)}</text>` +
-    `<text x="${pad + num.length * big * 0.6 + 10}" y="${h * 0.5}" ${font} font-size="${h * 0.14}" fill="${sc}" fill-opacity="0.75">puntos</text>` +
-    `<rect x="${pad}" y="${barY}" width="${barW}" height="${barH}" rx="${barH / 2}" fill="${sc}" fill-opacity="0.22"/>` +
-    `<rect x="${pad}" y="${barY}" width="${Math.max(barH, barW * pct)}" height="${barH}" rx="${barH / 2}" fill="${sc}"/>` +
-    `<text x="${pad}" y="${barY + barH + fs + 4}" ${font} font-size="${fs.toFixed(2)}" fill="${sc}" fill-opacity="0.85">${esc(label)}</text></svg>`;
+    `<rect width="${w}" height="${h}" fill="${bg}"/>${head}` +
+    `<text x="${w / 2}" y="${146 * k}" text-anchor="middle" ${font} font-size="${36 * k}" font-weight="700" fill="${sc}">${esc(num)}</text>` +
+    `<text x="${w / 2}" y="${159 * k}" text-anchor="middle" ${font} font-size="${8.5 * k}" letter-spacing="2" fill="${sc}" fill-opacity="0.75">PUNTOS</text>` +
+    `<rect x="${(w - barW) / 2}" y="${168 * k}" width="${barW}" height="${barH}" rx="${barH / 2}" fill="${sc}" fill-opacity="0.22"/>` +
+    `<rect x="${(w - barW) / 2}" y="${168 * k}" width="${Math.max(barH, barW * pct)}" height="${barH}" rx="${barH / 2}" fill="${sc}"/></svg>`;
 }
 
-async function renderPoints(kind, points, { goal = 0, label = '', brand, scale = 1 } = {}) {
+/** Logo redondo con aro del color del texto (para dibujarlo dentro de la imagen de puntos). */
+async function circleLogo(file, px, fg) {
+  const ring = Math.max(2, Math.round(px * 0.045));
+  const inner = px - ring * 2;
+  const circle = Buffer.from(`<svg width="${inner}" height="${inner}"><circle cx="${inner / 2}" cy="${inner / 2}" r="${inner / 2}"/></svg>`);
+  const face = await sharp(file).resize(inner, inner, { fit: 'cover' }).composite([{ input: circle, blend: 'dest-in' }]).png().toBuffer();
+  const frame = Buffer.from(`<svg width="${px}" height="${px}"><circle cx="${px / 2}" cy="${px / 2}" r="${px / 2 - ring / 2}" fill="none" stroke="${fg}" stroke-width="${ring}" stroke-opacity="0.9"/></svg>`);
+  return sharp({ create: { width: px, height: px, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+    .composite([{ input: face, left: ring, top: ring }, { input: frame }]).png().toBuffer();
+}
+
+async function renderPoints(kind, points, { goal = 0, name = '', logo = null, brand, scale = 1 } = {}) {
   if (!Number.isInteger(points) || points < 0 || points > 1e9) throw new RangeError('Puntos fuera de rango.');
   if (![1, 2, 3].includes(scale)) throw new RangeError('Escala no válida.');
   const b = normalizeBrand(brand);
-  const key = `pts|${kind}|${points}|${goal}|${label}|${b.bg}|${b.fg}|${b.stripBg}|${b.stamp}|${scale}`;
+  const key = `pts|${kind}|${points}|${goal}|${name}|${logo ? logo.length : 0}|${b.bg}|${b.fg}|${b.stripBg}|${b.stamp}|${scale}`;
   if (cache.has(key)) return cache.get(key);
-  const buf = await sharp(Buffer.from(pointsSvg(kind, points, goal, b, scale, label))).png({ compressionLevel: 9 }).toBuffer();
+  const buf = await sharp(Buffer.from(pointsSvg(kind, points, goal, b, scale, { name, logo }))).png({ compressionLevel: 9 }).toBuffer();
   if (cache.size > 500) cache.clear();
   cache.set(key, buf);
   return buf;
@@ -155,4 +170,4 @@ async function appleStripFiles(visits, opts = {}) {
   return { 'strip.png': a, 'strip@2x.png': b, 'strip@3x.png': c };
 }
 
-module.exports = { renderPoints, applePointsFiles, ICONS, STROKE, mix, icon, render, appleStripFiles, normalizeBrand, DEFAULT_BRAND, KINDS };
+module.exports = { circleLogo, renderPoints, applePointsFiles, ICONS, STROKE, mix, icon, render, appleStripFiles, normalizeBrand, DEFAULT_BRAND, KINDS };

@@ -110,7 +110,7 @@ function createApple({ db, svc, secret, config, push }) {
       serialNumber: serial,
       organizationName: b.name,
       description: `Tarjeta de fidelidad de ${b.name}`,
-      logoText: b.name.toUpperCase(),
+      ...(pi ? {} : { logoText: b.name.toUpperCase() }), // en puntos el logo y el nombre van dentro de la imagen, centrados
       backgroundColor: rgb(brand.bg),
       foregroundColor: rgb(brand.fg),
       labelColor: rgb(brand.fg),
@@ -118,7 +118,7 @@ function createApple({ db, svc, secret, config, push }) {
       authenticationToken: tokenFor(serial),
       barcodes: [{ format: 'PKBarcodeFormatQR', message: svc.codeFor(b.slug, row.id), messageEncoding: 'iso-8859-1' }],
       storeCard: {
-        headerFields: [pi ? { key: 'visits', label: 'PUNTOS', value: String(row.visits) } : { key: 'visits', label: 'VISITAS', value: `${row.visits} de ${required}` }],
+        headerFields: pi ? [] : [{ key: 'visits', label: 'VISITAS', value: `${row.visits} de ${required}` }],
         secondaryFields: [
           pi ? { key: 'reward', label: 'PRÓXIMO PREMIO', value: pi.next ? `${pi.next.name} (${pi.next.cost} pts)` : 'Todos disponibles' }
             : { key: 'reward', label: 'RECOMPENSA', value: b.reward },
@@ -145,7 +145,8 @@ function createApple({ db, svc, secret, config, push }) {
     const files = {
       'pass.json': Buffer.from(JSON.stringify(passJson(b, row))),
       ...(pointsInfo(b, row)
-        ? await stamps.applePointsFiles(row.visits, { goal: (pointsInfo(b, row).next || {}).cost || 0, label: captionText(b, row), brand })
+        ? await stamps.applePointsFiles(row.visits, { goal: (pointsInfo(b, row).next || {}).cost || 0, name: b.name, brand,
+          logo: logoFileFor(b.slug) ? await stamps.circleLogo(logoFileFor(b.slug), 240, brand.fg) : null })
         : await stamps.appleStripFiles(Math.min(row.visits, b.visits_required), { total: b.visits_required, brand, caption: captionText(b, row) })),
     };
     const logoFile = logoFileFor(b.slug);
@@ -167,9 +168,11 @@ function createApple({ db, svc, secret, config, push }) {
         return sharp({ create: { width: px, height: px, channels: 4, background: bg } })
           .composite([{ input: face, left: Math.round(px * 0.1), top: Math.round(px * 0.2) }]).png().toBuffer();
       };
-      files['logo.png'] = await padTop(50);
-      files['logo@2x.png'] = await padTop(100);
-      files['logo@3x.png'] = await padTop(150);
+      if (!pointsInfo(b, row)) {
+        files['logo.png'] = await padTop(50);
+        files['logo@2x.png'] = await padTop(100);
+        files['logo@3x.png'] = await padTop(150);
+      }
       files['icon.png'] = await resize(29);
       files['icon@2x.png'] = await resize(58);
       files['icon@3x.png'] = await resize(87);

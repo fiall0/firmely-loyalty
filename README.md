@@ -82,3 +82,16 @@ Cada negocio tiene en su panel (`/admin/<slug>`) estas pestañas nuevas:
 
 API (rol admin): `GET /api/:slug/metrics`, `GET|PATCH /api/:slug/settings`, `POST /api/:slug/geocode`.
 Los ajustes se guardan en `businesses.settings_json`; cumpleaños y referidos agregan columnas a `customers` (migración automática).
+
+## Panel general de Firmely
+
+Gestiona todos los negocios desde un solo lugar y, dentro de cada uno, el servicio (hoy: tarjeta de fidelidad; después chatbot, web, facturación).
+Crear negocio, editar diseño/reglas/logo, regenerar llaves (se muestran una sola vez) y eliminar (pide escribir el slug).
+
+- URL: `https://loyalty.firmely.io/firmely` (más adelante `admin.firmely.io`).
+- Variables de entorno:
+  - `FIRMELY_ADMIN_KEY` — llave del panel (larga, aleatoria, distinta a las de los negocios). Sin ella el panel queda desactivado (503).
+  - `LOGOS_DIR` — dónde se guardan los logos subidos (por defecto `logos/` junto a la base de datos, dentro del volumen de Railway).
+  - `ADMIN_HOST` — opcional. Si se define (p. ej. `admin.firmely.io`), el panel solo responde en ese dominio y el resto de rutas se bloquean allí.
+  - `LOYALTY_URL` — opcional. URL pública del servicio de fidelidad para armar los enlaces cuando el panel vive en otro dominio.
+- API: `/firmely/api/*` con cabecera `x-firmely-key`.

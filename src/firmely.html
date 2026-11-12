@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Firmely · Panel</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%233F4FE0'/%3E%3Ctext x='16' y='23' font-size='20' font-family='Arial' font-weight='700' text-anchor='middle' fill='white'%3EF%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0F1720;--panel:#17212D;--panel2:#1E2A38;--line:#2B3A4C;--fg:#F6F5F1;--muted:#9AA6B5;--acc:#3F4FE0;--acc2:#7C8CFF;--ok:#4ADE80;--bad:#FF8A80;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 Inter,system-ui,-apple-system,sans-serif}
+button,input,select{font:inherit;color:inherit}
+a{color:var(--acc2)}
+header.top{position:sticky;top:0;z-index:5;background:rgba(15,23,32,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.bar{max-width:1080px;margin:0 auto;padding:14px 16px;display:flex;align-items:center;gap:12px}
+.brand{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:20px;letter-spacing:.02em;display:flex;align-items:center;gap:10px;cursor:pointer}
+.brand i{width:28px;height:28px;border-radius:8px;background:var(--acc);display:grid;place-items:center;font-style:normal;font-size:16px}
+.brand small{font:500 12px Inter;color:var(--muted);letter-spacing:.1em;text-transform:uppercase}
+.sp{flex:1}
+main{max-width:1080px;margin:0 auto;padding:22px 16px 70px}
+h1,h2,h3{font-family:'Space Grotesk',sans-serif;margin:0}
+h1{font-size:28px}h2{font-size:19px}h3{font-size:16px}
+.muted{color:var(--muted)}.small{font-size:13px}
+.btn{border:0;border-radius:12px;padding:11px 18px;background:var(--acc);color:#fff;font-weight:600;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn:hover{filter:brightness(1.1)}.btn[disabled]{opacity:.55;cursor:wait}
+.btn.alt{background:var(--panel2);color:var(--fg);border:1px solid var(--line)}
+.btn.bad{background:#C0392B}.btn.sm{padding:7px 12px;font-size:13px;border-radius:10px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:14px}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+.kpis{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin:18px 0}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px 16px}
+.kpi span{font-size:13px;color:var(--muted)}.kpi b{display:block;font:700 28px 'Space Grotesk',sans-serif}
+.biz{cursor:pointer;transition:.15s;gap:12px}.biz:hover{border-color:var(--acc2);transform:translateY(-2px)}
+.row{display:flex;align-items:center;gap:14px}
+.logo{width:52px;height:52px;border-radius:50%;object-fit:cover;background:var(--panel2);border:1px solid var(--line);flex:none}
+.logo.lg{width:72px;height:72px}
+.dots{display:flex;gap:6px}.dots i{width:14px;height:14px;border-radius:50%;border:1px solid rgba(255,255,255,.25)}
+.chip{font-size:12px;padding:3px 10px;border-radius:99px;background:rgba(74,222,128,.14);color:var(--ok);font-weight:600}
+.chip.off{background:var(--panel2);color:var(--muted)}
+.svc{cursor:pointer}.svc.off{opacity:.55;cursor:not-allowed}.svc:not(.off):hover{border-color:var(--acc2)}
+.crumb{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:14px;margin-bottom:14px;flex-wrap:wrap}.crumb a{cursor:pointer;text-decoration:none}.crumb a:hover{color:var(--fg)}
+label{display:block;font-size:13px;color:var(--muted);margin:0 0 5px}
+input[type=text],input[type=number],input[type=password],select{width:100%;padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);outline:none}
+input:focus,select:focus{border-color:var(--acc2)}
+.f2{display:grid;gap:12px;grid-template-columns:1fr 1fr}.f3{display:grid;gap:12px;grid-template-columns:repeat(3,1fr)}
+@media(max-width:620px){.f2,.f3{grid-template-columns:1fr}h1{font-size:23px}}
+.urlrow{display:flex;gap:8px;align-items:center;background:var(--panel2);border-radius:12px;padding:8px 8px 8px 12px;min-width:0}
+.urlrow b{font-size:12px;color:var(--muted);width:78px;flex:none;font-weight:600}
+.urlrow code{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.colorf{display:flex;gap:8px;align-items:center}.colorf input[type=color]{width:46px;height:42px;padding:2px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);cursor:pointer;flex:none}
+.colorf input[type=text]{flex:1;min-width:0}
+.auto{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted);margin-top:6px;cursor:pointer}.auto input{width:auto}
+.err{color:var(--bad);min-height:20px;font-size:14px}.ok{color:var(--ok);font-size:14px}
+.mock{border-radius:18px;padding:14px;width:100%;max-width:330px;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.mock .mh{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.04em;font-size:13px}
+.mock .mh img{width:30px;height:30px;border-radius:50%}
+.mock .ms{margin:12px -14px;padding:12px 14px;display:grid;grid-template-columns:repeat(6,1fr);gap:7px}
+.mock .ms i{aspect-ratio:1;border-radius:50%;border:2px solid;display:block}
+.mock .mf{display:flex;justify-content:space-between;font-size:12px}
+.keybox{background:var(--panel2);border:1px dashed var(--acc2);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.keybox code{font-size:15px;word-break:break-all}
+.modal{position:fixed;inset:0;background:rgba(5,9,14,.72);display:grid;place-items:center;padding:16px;z-index:20}
+.modal .card{max-width:480px;width:100%;max-height:90vh;overflow:auto}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--fg);color:#0F1720;padding:11px 18px;border-radius:12px;font-weight:600;z-index:30;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.login{max-width:380px;margin:12vh auto 0}
+.danger{border-color:#6b2a26}
+.bars{display:flex;gap:10px;flex-wrap:wrap}
+img.strip{width:100%;max-width:420px;border-radius:12px;border:1px solid var(--line)}
+.two{display:flex;gap:10px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<header class="top"><div class="bar">
+  <div class="brand" id="home"><i>F</i>Firmely <small>Panel</small></div>
+  <div class="sp"></div><button class="btn alt sm" id="out" hidden>Salir</button>
+</div></header>
+<main id="app"></main>
+
+<script>
+const $app = document.getElementById('app');
+let KEY = ''; try { KEY = sessionStorage.getItem('fk') || ''; } catch {}
+let CFG = { loyaltyUrl: '' };
+let BIZ = [];
+const SERVICES = [
+  { id: 'loyalty', name: 'Tarjeta de fidelidad', desc: 'Apple y Google Wallet con sellos, avisos y caja.', active: true },
+  { id: 'chatbot', name: 'Chatbot con IA', desc: 'Atención automática por WhatsApp.', active: false },
+  { id: 'web', name: 'Página web', desc: 'Landing o sitio del negocio.', active: false },
+  { id: 'efactura', name: 'Facturación electrónica', desc: 'Comprobantes fiscales (e-CF).', active: false },
+];
+
+// ---------- utilidades ----------
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v === undefined || v === null || v === false) continue;
+    if (k === 'class') el.className = v;
+    else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+    else if (k === 'value') el.value = v;
+    else if (k === 'checked' || k === 'disabled' || k === 'hidden') el[k] = !!v;
+    else el.setAttribute(k, v === true ? '' : v);
+  }
+  for (const c of kids.flat()) if (c !== null && c !== undefined && c !== false) el.append(c.nodeType ? c : document.createTextNode(String(c)));
+  return el;
+}
+const base = () => (CFG.loyaltyUrl || location.origin).replace(/\/+$/, '');
+const slugify = (t) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+let toastT;
+function toast(msg) { document.querySelectorAll('.toast').forEach((t) => t.remove()); const t = h('div', { class: 'toast' }, msg); document.body.append(t); clearTimeout(toastT); toastT = setTimeout(() => t.remove(), 2600); }
+async function copy(text) { try { await navigator.clipboard.writeText(text); toast('Copiado'); } catch { toast('No se pudo copiar'); } }
+
+async function api(path, opts = {}) {
+  const r = await fetch('/firmely/api' + path, { ...opts, headers: { 'content-type': 'application/json', 'x-firmely-key': KEY } });
+  let j = {}; try { j = await r.json(); } catch {}
+  if (r.status === 401) { logout('Llave incorrecta.'); throw new Error('Llave incorrecta.'); }
+  if (!r.ok) throw new Error(j.message || 'Error ' + r.status);
+  return j;
+}
+function logout(msg) { KEY = ''; try { sessionStorage.removeItem('fk'); } catch {} renderLogin(msg); }
+document.getElementById('out').onclick = () => logout();
+document.getElementById('home').onclick = () => { location.hash = '#/'; };
+
+// ---------- acceso ----------
+function renderLogin(msg) {
+  document.getElementById('out').hidden = true;
+  const key = h('input', { type: 'password', autocomplete: 'off', placeholder: 'Llave de Firmely', autofocus: true });
+  const err = h('div', { class: 'err' }, msg || '');
+  const go = async () => {
+    KEY = key.value.trim(); err.textContent = '';
+    if (!KEY) return;
+    try { await api('/config'); try { sessionStorage.setItem('fk', KEY); } catch {} route(); }
+    catch (e) { KEY = ''; err.textContent = e.message; }
+  };
+  key.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
+  $app.replaceChildren(h('div', { class: 'login card' },
+    h('h1', {}, 'Panel Firmely'), h('p', { class: 'muted', style: 'margin:0' }, 'Entra con tu llave para gestionar los negocios.'),
+    key, h('button', { class: 'btn', onclick: go }, 'Entrar'), err));
+  key.focus();
+}
+
+// ---------- rutas ----------
+async function route() {
+  if (!KEY) return renderLogin();
+  document.getElementById('out').hidden = false;
+  try {
+    CFG = await api('/config');
+    BIZ = (await api('/businesses')).businesses;
+  } catch (e) { if (KEY) $app.replaceChildren(h('div', { class: 'card' }, h('div', { class: 'err' }, e.message))); return; }
+  const p = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
+  if (!p.length) return renderHome();
+  if (p[0] === 'nuevo') return renderNew();
+  if (p[0] === 'n' && p[1]) {
+    const b = BIZ.find((x) => x.slug === p[1]);
+    if (!b) { location.hash = '#/'; return; }
+    return p[2] === 'loyalty' ? renderLoyalty(b) : renderBusiness(b);
+  }
+  location.hash = '#/';
+}
+window.addEventListener('hashchange', route);
+
+// ---------- inicio ----------
+const sum = (k) => BIZ.reduce((a, b) => a + b[k], 0);
+function renderHome() {
+  const q = h('input', { type: 'text', placeholder: 'Buscar negocio…' });
+  const grid = h('div', { class: 'grid' });
+  const draw = () => {
+    const t = q.value.trim().toLowerCase();
+    const list = BIZ.filter((b) => !t || b.name.toLowerCase().includes(t) || b.slug.includes(t));
+    grid.replaceChildren(...list.map((b) => h('div', { class: 'card biz', onclick: () => { location.hash = `#/n/${b.slug}`; } },
+      h('div', { class: 'row' }, h('img', { class: 'logo', src: `/api/${b.slug}/logo.png?v=${Date.now() % 1e6}`, alt: '' }),
+        h('div', { style: 'min-width:0' }, h('h3', {}, b.name), h('div', { class: 'muted small' }, b.slug))),
+      h('div', { class: 'row small muted' }, `${b.customers} clientes · ${b.visitsThisWeek} visitas esta semana`),
+      h('div', { class: 'row' }, h('div', { class: 'dots' }, h('i', { style: `background:${b.brand.bg}` }), h('i', { style: `background:${b.brand.fg}` })),
+        h('span', { class: 'chip' }, 'Tarjeta de fidelidad')))));
+    if (!list.length) grid.replaceChildren(h('div', { class: 'muted' }, BIZ.length ? 'Ningún negocio coincide.' : 'Aún no hay negocios. Crea el primero.'));
+  };
+  q.addEventListener('input', draw); draw();
+  $app.replaceChildren(
+    h('div', { class: 'row' }, h('h1', {}, 'Negocios'), h('div', { class: 'sp' }), h('a', { class: 'btn', href: '#/nuevo' }, '+ Nuevo negocio')),
+    h('div', { class: 'kpis' },
+      [['Negocios', BIZ.length], ['Clientes', sum('customers')], ['Visitas (7 días)', sum('visitsThisWeek')], ['Premios canjeados', sum('rewardsRedeemed')]]
+        .map(([t, v]) => h('div', { class: 'kpi' }, h('span', {}, t), h('b', {}, v)))),
+    q, h('div', { style: 'height:14px' }), grid);
+}
+
+// ---------- negocio y servicios ----------
+const crumb = (...parts) => h('div', { class: 'crumb' }, parts.flatMap((p, i) => [i ? '›' : null, p]));
+const home = () => h('a', { href: '#/' }, 'Negocios');
+function renderBusiness(b) {
+  $app.replaceChildren(
+    crumb(home(), b.name),
+    h('div', { class: 'row', style: 'margin-bottom:6px' }, h('img', { class: 'logo lg', src: `/api/${b.slug}/logo.png?v=${Date.now() % 1e6}`, alt: '' }),
+      h('div', {}, h('h1', {}, b.name), h('div', { class: 'muted' }, b.slug))),
+    h('h2', { style: 'margin:22px 0 12px' }, 'Servicios'),
+    h('div', { class: 'grid' }, SERVICES.map((s) => h('div', { class: 'card svc' + (s.active ? '' : ' off'), onclick: s.active ? () => { location.hash = `#/n/${b.slug}/${s.id}`; } : null },
+      h('div', { class: 'row' }, h('h3', {}, s.name), h('div', { class: 'sp' }), h('span', { class: 'chip' + (s.active ? '' : ' off') }, s.active ? 'Activo' : 'Próximamente')),
+      h('div', { class: 'muted small' }, s.desc),
+      s.active ? h('div', { class: 'small' }, `${b.customers} clientes · ${b.visitsThisWeek} visitas esta semana`) : null))));
+}
+
+// ---------- formulario de negocio (crear y editar) ----------
+const ICONS = [['scissors', 'Tijeras'], ['cup', 'Taza de café'], ['dryer', 'Secador de cabello'], ['drop', 'Gota']];
+const mix = (a, b, t) => '#' + [1, 3, 5].map((i) => Math.round(parseInt(a.slice(i, i + 2), 16) + (parseInt(b.slice(i, i + 2), 16) - parseInt(a.slice(i, i + 2), 16)) * t).toString(16).padStart(2, '0')).join('');
+const HEX = /^#[0-9a-fA-F]{6}$/;
+
+function colorField(label, value, { optional = false } = {}) {
+  const txt = h('input', { type: 'text', value: value || '#000000', maxlength: 7 });
+  const pick = h('input', { type: 'color', value: HEX.test(value || '') ? value : '#000000' });
+  const auto = optional ? h('input', { type: 'checkbox', checked: !value }) : null;
+  const sync = () => { const d = auto && auto.checked; txt.disabled = d; pick.disabled = d; wrap.style.opacity = d ? .45 : 1; };
+  pick.addEventListener('input', () => { txt.value = pick.value.toUpperCase(); fire(); });
+  txt.addEventListener('input', () => { if (HEX.test(txt.value)) pick.value = txt.value; fire(); });
+  let fire = () => {};
+  const wrap = h('div', { class: 'colorf' }, pick, txt);
+  if (auto) auto.addEventListener('change', () => { sync(); fire(); });
+  const el = h('div', {}, h('label', {}, label), wrap, auto ? h('label', { class: 'auto' }, auto, 'Automático') : null);
+  sync();
+  return { el, get: () => (auto && auto.checked ? null : (HEX.test(txt.value) ? txt.value.toUpperCase() : null)), onchange: (f) => { fire = f; } };
+}
+
+function bizForm(b, mode) {
+  const br = (b && b.brand) || { bg: '#0F1720', fg: '#FFFFFF', icon: 'scissors' };
+  const name = h('input', { type: 'text', maxlength: 40, value: b ? b.name : '', placeholder: 'Ej: Sayonara Beauty' });
+  const slug = h('input', { type: 'text', maxlength: 40, value: b ? b.slug : '', placeholder: 'sayonara-beauty', disabled: mode === 'edit' });
+  let slugTouched = false;
+  slug.addEventListener('input', () => { slugTouched = true; });
+  name.addEventListener('input', () => { if (mode === 'create' && !slugTouched) slug.value = slugify(name.value); draw(); });
+  const reward = h('input', { type: 'text', maxlength: 60, value: b ? b.reward : '', placeholder: 'Ej: Café gratis' });
+  const visits = h('input', { type: 'number', min: 2, max: 24, value: b ? b.visitsRequired : 10 });
+  const unit = h('input', { type: 'text', maxlength: 30, value: br.unit || '', placeholder: 'visita' });
+  const units = h('input', { type: 'text', maxlength: 30, value: br.units || '', placeholder: 'visitas' });
+  const unitsLong = h('input', { type: 'text', maxlength: 30, value: br.unitsLong || '', placeholder: 'visitas (ej. lavadas de cabello)' });
+  const minH = h('input', { type: 'number', min: 0, max: 720, value: b ? b.minHoursBetweenVisits : 4 });
+  const maxN = h('input', { type: 'number', min: 0, max: 20, value: b ? b.maxNoticesPerMonth : 2 });
+  const icon = h('select', {}, ICONS.map(([v, t]) => h('option', { value: v, selected: v === br.icon }, t)));
+  const cBg = colorField('Color de fondo', br.bg), cFg = colorField('Color de texto', br.fg);
+  const cStrip = colorField('Fondo del recuadro de sellos', br.stripBg, { optional: true });
+  const cStamp = colorField('Color de los sellos', br.stamp, { optional: true });
+  const cInk = colorField('Color del dibujo en el sello', br.stampInk, { optional: true });
+  const file = h('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp' });
+  let logoData = null;
+  const logoPrev = h('img', { class: 'logo lg', alt: '', src: b ? `/api/${b.slug}/logo.png?v=${Date.now() % 1e6}` : '', hidden: !b });
+  file.addEventListener('change', () => {
+    const f = file.files[0]; logoData = null; if (!f) return;
+    if (f.size > 3 * 1024 * 1024) { file.value = ''; toast('El logo pesa más de 3 MB'); return; }
+    const rd = new FileReader();
+    rd.onload = () => { logoData = rd.result; logoPrev.src = rd.result; logoPrev.hidden = false; draw(); };
+    rd.readAsDataURL(f);
+  });
+  const mock = h('div', { class: 'mock' });
+  function draw() {
+    const bg = cBg.get() || '#0F1720', fg = cFg.get() || '#FFFFFF';
+    const strip = cStrip.get() || mix(bg, fg, .08), stamp = cStamp.get() || fg, ink = cInk.get() || bg;
+    const total = Math.min(24, Math.max(2, Number(visits.value) || 10)), done = Math.floor(total / 2);
+    mock.style.background = bg; mock.style.color = fg;
+    const cols = Math.ceil(total / 2);
+    mock.replaceChildren(
+      h('div', { class: 'mh' }, logoPrev.src && !logoPrev.hidden ? h('img', { src: logoPrev.src, alt: '' }) : null, (name.value || 'Tu negocio').toUpperCase()),
+      h('div', { class: 'ms', style: `background:${strip};grid-template-columns:repeat(${Math.min(cols, 12)},1fr)` },
+        Array.from({ length: total }, (_, i) => h('i', { style: i < done ? `background:${stamp};border-color:${stamp}` : `border-color:${stamp};opacity:.55` }))),
+      h('div', { class: 'mf' }, h('span', {}, 'RECOMPENSA'), h('span', {}, 'SELLOS')),
+      h('div', { class: 'mf', style: 'font-size:14px;font-weight:600' }, h('span', {}, reward.value || 'Premio'), h('span', {}, `${done} de ${total}`)));
+  }
+  [cBg, cFg, cStrip, cStamp, cInk].forEach((c) => c.onchange(draw));
+  [reward, visits].forEach((i) => i.addEventListener('input', draw));
+  draw();
+  const L = (t, el) => h('div', {}, h('label', {}, t), el);
+  const el = h('div', { style: 'display:flex;flex-direction:column;gap:16px' },
+    h('div', { class: mode === 'create' ? 'f2' : '' }, L('Nombre del negocio', name), mode === 'create' ? L('Identificador (se usa en los enlaces y no se puede cambiar)', slug) : null),
+    h('div', { class: 'f2' }, L('Premio', reward), L('Visitas para ganarlo', visits)),
+    h('div', { class: 'f3' }, L('Se cuenta (singular)', unit), L('Se cuenta (plural)', units), L('En el cartel (largo)', unitsLong)),
+    h('div', { class: 'f3' }, L('Icono de los sellos', icon), L('Horas entre visitas', minH), L('Avisos máx. por mes', maxN)),
+    h('div', { class: 'f2' }, cBg.el, cFg.el),
+    h('div', { class: 'f3' }, cStrip.el, cStamp.el, cInk.el),
+    h('div', { class: 'row', style: 'align-items:flex-start;flex-wrap:wrap' }, h('div', { style: 'flex:1;min-width:230px' }, L('Logo (PNG, JPG o WEBP, hasta 3 MB)', file), h('div', { class: 'muted small', style: 'margin-top:6px' }, 'Se ajusta a un círculo cuadrado sobre el color de fondo.')), logoPrev),
+    h('div', {}, h('label', {}, 'Vista previa'), mock));
+  return {
+    el,
+    values() {
+      const t = (i) => (i.value.trim() ? i.value.trim().toLowerCase() : null);
+      return {
+        slug: slug.value.trim(), name: name.value.trim(), reward: reward.value.trim(), visitsRequired: Number(visits.value),
+        minHoursBetweenVisits: Number(minH.value), maxNoticesPerMonth: Number(maxN.value),
+        brand: { bg: cBg.get(), fg: cFg.get(), icon: icon.value, unit: t(unit), units: t(units), unitsLong: t(unitsLong), stripBg: cStrip.get(), stamp: cStamp.get(), stampInk: cInk.get() },
+        ...(logoData ? { logo: logoData } : {}),
+      };
+    },
+  };
+}
+
+// ---------- crear negocio ----------
+function keyBlock(keys) {
+  return h('div', { class: 'keybox' },
+    h('b', {}, 'Guarda estas llaves ahora: no se vuelven a mostrar.'),
+    [['Caja (escanea y suma visitas)', keys.staff], ['Admin (panel del negocio)', keys.admin]].filter(([, k]) => k).map(([t, k]) =>
+      h('div', {}, h('div', { class: 'muted small' }, t), h('div', { class: 'row' }, h('code', { style: 'flex:1' }, k), h('button', { class: 'btn alt sm', onclick: () => copy(k) }, 'Copiar')))),
+    h('div', { class: 'muted small' }, 'Úsalas en un gestor de contraseñas.'));
+}
+function renderNew() {
+  const f = bizForm(null, 'create');
+  const err = h('div', { class: 'err' });
+  const btn = h('button', { class: 'btn' }, 'Crear negocio');
+  btn.onclick = async () => {
+    err.textContent = ''; btn.disabled = true;
+    try {
+      const v = f.values();
+      for (const k of Object.keys(v.brand)) if (v.brand[k] === null) delete v.brand[k];
+      const { business, keys } = await api('/businesses', { method: 'POST', body: JSON.stringify(v) });
+      BIZ = (await api('/businesses')).businesses;
+      $app.replaceChildren(crumb(home(), 'Nuevo negocio'),
+        h('div', { class: 'card' }, h('h1', {}, `¡${business.name} está listo!`),
+          h('p', { class: 'muted', style: 'margin:0' }, 'Ya puede registrar clientes. Comparte el enlace de registro o imprime su cartel con QR.'),
+          keyBlock(keys),
+          h('div', { class: 'two' }, h('a', { class: 'btn', href: `#/n/${business.slug}/loyalty` }, 'Ir al negocio'), h('a', { class: 'btn alt', href: `#/` }, 'Volver a la lista'))));
+    } catch (e) { err.textContent = e.message; btn.disabled = false; }
+  };
+  $app.replaceChildren(crumb(home(), 'Nuevo negocio'), h('div', { class: 'card' }, h('h1', {}, 'Nuevo negocio'), f.el, err, btn));
+}
+
+// ---------- servicio: tarjeta de fidelidad ----------
+function modal(...content) {
+  const m = h('div', { class: 'modal', onclick: (e) => { if (e.target === m) m.remove(); } }, h('div', { class: 'card' }, ...content));
+  document.body.append(m); return m;
+}
+function renderLoyalty(b) {
+  const u = base();
+  const link = (t, url) => h('div', { class: 'urlrow' }, h('b', {}, t), h('code', {}, url),
+    h('button', { class: 'btn alt sm', onclick: () => copy(url) }, 'Copiar'), h('a', { class: 'btn alt sm', href: url, target: '_blank', rel: 'noopener' }, 'Abrir'));
+  const keysCard = () => {
+    const out = h('div');
+    const regen = (which, label) => h('button', { class: 'btn alt sm', onclick: () => {
+      const m = modal(h('h3', {}, `Regenerar ${label}`), h('p', { class: 'muted', style: 'margin:0' }, 'La llave actual dejará de funcionar de inmediato. Tendrás que dársela de nuevo a quien la use.'),
+        h('div', { class: 'two' }, h('button', { class: 'btn bad', onclick: async (e) => {
+          e.target.disabled = true;
+          try { const { keys } = await api(`/businesses/${b.slug}/keys`, { method: 'POST', body: JSON.stringify({ which }) }); m.querySelector('.card').replaceChildren(h('h3', {}, 'Llave nueva'), keyBlock(keys), h('button', { class: 'btn', onclick: () => m.remove() }, 'Listo')); }
+          catch (er) { m.remove(); toast(er.message); }
+        } }, 'Sí, regenerar'), h('button', { class: 'btn alt', onclick: () => m.remove() }, 'Cancelar')));
+    } }, `Regenerar ${label}`);
+    out.append(h('div', { class: 'muted small' }, 'Las llaves no se pueden ver otra vez (se guardan cifradas). Si se pierden, regenéralas.'),
+      h('div', { class: 'two' }, regen('staff', 'llave de caja'), regen('admin', 'llave de admin'), regen('both', 'ambas')));
+    return out;
+  };
+
+  const f = bizForm(b, 'edit');
+  const err = h('div', { class: 'err' }), okm = h('div', { class: 'ok' });
+  const save = h('button', { class: 'btn' }, 'Guardar cambios');
+  const strip = h('img', { class: 'strip', alt: '', src: `/api/${b.slug}/stamp/${Math.floor(b.visitsRequired / 2)}.png?scale=2&v=${Date.now() % 1e6}` });
+  save.onclick = async () => {
+    err.textContent = ''; okm.textContent = ''; save.disabled = true;
+    try {
+      const v = f.values(); delete v.slug;
+      await api(`/businesses/${b.slug}`, { method: 'PATCH', body: JSON.stringify(v) });
+      okm.textContent = 'Guardado. Las tarjetas ya instaladas se actualizan solas.';
+      BIZ = (await api('/businesses')).businesses;
+      const nb = BIZ.find((x) => x.slug === b.slug); strip.src = `/api/${b.slug}/stamp/${Math.floor(nb.visitsRequired / 2)}.png?scale=2&v=${Date.now()}`;
+    } catch (e) { err.textContent = e.message; }
+    save.disabled = false;
+  };
+
+  const del = () => {
+    const c = h('input', { type: 'text', placeholder: b.slug, autocomplete: 'off' });
+    const go = h('button', { class: 'btn bad', disabled: true }, 'Eliminar para siempre');
+    c.addEventListener('input', () => { go.disabled = c.value.trim() !== b.slug; });
+    const m = modal(h('h3', {}, `Eliminar ${b.name}`),
+      h('p', { class: 'muted', style: 'margin:0' }, `Se borran sus ${b.customers} clientes, historial, avisos y logo. Las tarjetas que ya estén en los teléfonos dejarán de funcionar. No se puede deshacer.`),
+      h('div', {}, h('label', {}, `Escribe "${b.slug}" para confirmar`), c),
+      h('div', { class: 'two' }, go, h('button', { class: 'btn alt', onclick: () => m.remove() }, 'Cancelar')));
+    go.onclick = async () => {
+      go.disabled = true;
+      try { await api(`/businesses/${b.slug}`, { method: 'DELETE', body: JSON.stringify({ confirm: c.value.trim() }) }); m.remove(); toast('Negocio eliminado'); location.hash = '#/'; }
+      catch (e) { toast(e.message); go.disabled = false; }
+    };
+  };
+
+  $app.replaceChildren(
+    crumb(home(), h('a', { href: `#/n/${b.slug}` }, b.name), 'Tarjeta de fidelidad'),
+    h('div', { class: 'row' }, h('img', { class: 'logo lg', src: `/api/${b.slug}/logo.png?v=${Date.now() % 1e6}`, alt: '' }),
+      h('div', {}, h('h1', {}, b.name), h('div', { class: 'muted' }, 'Tarjeta de fidelidad'))),
+    h('div', { class: 'kpis' }, [['Clientes', b.customers], ['Visitas (7 días)', b.visitsThisWeek], ['Premios canjeados', b.rewardsRedeemed], ['Meta', `${b.visitsRequired} → ${b.reward}`]]
+      .map(([t, v]) => h('div', { class: 'kpi' }, h('span', {}, t), h('b', { style: typeof v === 'string' ? 'font-size:16px;line-height:1.3;padding-top:8px' : '' }, v)))),
+    h('div', { style: 'display:flex;flex-direction:column;gap:16px' },
+      h('div', { class: 'card' }, h('h2', {}, 'Enlaces'),
+        link('Registro', `${u}/r/${b.slug}`), link('Caja', `${u}/caja/${b.slug}`), link('Panel', `${u}/admin/${b.slug}`),
+        link('Cartel QR', `${u}/api/${b.slug}/poster.png?download=1`), link('QR (PNG)', `${u}/api/${b.slug}/qr.png`)),
+      h('div', { class: 'card' }, h('h2', {}, 'Llaves de acceso'), keysCard()),
+      h('div', { class: 'card' }, h('h2', {}, 'Apariencia y reglas'), f.el,
+        h('div', {}, h('label', {}, 'Así se ve la tarjeta guardada (sellos a la mitad)'), strip), err, okm, save),
+      h('div', { class: 'card danger' }, h('h2', {}, 'Zona de peligro'), h('div', { class: 'muted small' }, 'Eliminar el negocio borra todos sus datos.'),
+        h('div', {}, h('button', { class: 'btn bad', onclick: del }, 'Eliminar negocio')))));
+}
+
+route();
+</script>
+</body>
+</html>

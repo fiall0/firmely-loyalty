@@ -3,12 +3,30 @@ const { HttpError } = require('./service');
 const stamps = require('./stamps');
 const poster = require('./poster');
 const pages = require('./pages');
+const logos = require('./logos');
+const { createFirmelyRouter } = require('./firmely');
 const { parseCoords } = require('./settings');
 
-function createApp(svc, { apple, google } = {}) {
+function createApp(svc, { apple, google, firmelyKey, adminHost = process.env.ADMIN_HOST, loyaltyUrl = process.env.LOYALTY_URL || '' } = {}) {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', 1); // detrás del proxy HTTPS de la nube, req.ip es la IP real
+  // Panel general de Firmely, con su propio lector de JSON (límite mayor para los logos).
+  // Con ADMIN_HOST definido: en ese host "/" abre el panel y solo se sirve lo que el panel necesita;
+  // en los demás hosts el panel no existe. Sin ADMIN_HOST, el panel vive en /firmely de cualquier host.
+  const panelFile = require('path').join(__dirname, 'firmely.html');
+  const ah = String(adminHost || '').toLowerCase();
+  app.use((req, res, next) => {
+    if (!ah) return next();
+    const onAdmin = req.hostname.toLowerCase() === ah;
+    if (!onAdmin) return /^\/firmely(\/|$)/.test(req.path) ? res.status(404).json({ error: 'not_found' }) : next();
+    if (req.path === '/' || req.path === '/firmely') return res.sendFile(panelFile);
+    if (/^\/firmely\/api(\/|$)/.test(req.path)) return next();
+    if (req.method === 'GET' && /^\/api\/[a-z0-9-]+\/(logo\.png|poster\.png|qr\.png|qr\.svg|stamp\/\d+\.png)$/.test(req.path)) return next();
+    return res.status(404).json({ error: 'not_found' });
+  });
+  app.use('/firmely/api', createFirmelyRouter(svc, { key: firmelyKey, loyaltyUrl }));
+  app.get('/firmely', (_req, res) => res.sendFile(panelFile));
   app.use(express.json({ limit: '10kb' }));
 
   if (apple) app.use('/apple', apple.router);
@@ -89,9 +107,9 @@ function createApp(svc, { apple, google } = {}) {
   // Logo público del negocio (assets/logos/<slug>.png); si no hay, un ícono generado con sus colores.
   r.get('/logo.png', async (req, res, next) => {
     try {
-      const file = require('path').join(__dirname, '..', 'assets', 'logos', `${req.biz.slug}.png`);
-      res.set('cache-control', 'public, max-age=3600').type('png');
-      if (/^[a-z0-9-]+$/.test(req.biz.slug) && require('fs').existsSync(file)) return res.sendFile(file);
+      const file = logos.find(req.biz.slug);
+      res.set('cache-control', 'public, max-age=300').type('png');
+      if (file) return res.sendFile(file);
       res.send(await stamps.icon(256, svc.brandOf(req.biz)));
     } catch (e) { next(e); }
   });

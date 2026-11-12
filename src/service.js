@@ -537,7 +537,72 @@ function createService({ db, secret, now = () => new Date(), hooks = {} }) {
     return summary;
   }
 
+  // ---------- panel Firmely: gestión de negocios ----------
+  const publicBusiness = (b) => ({
+    slug: b.slug, name: b.name, reward: b.reward, visitsRequired: b.visits_required,
+    minHoursBetweenVisits: b.min_hours_between_visits, maxNoticesPerMonth: b.max_notices_per_month,
+    brand: brandOf(b), createdAt: b.created_at, ...stats(b),
+  });
+  const listBusinesses = () => db.prepare('SELECT * FROM businesses ORDER BY created_at DESC, id DESC').all().map(publicBusiness);
+
+  function updateBusiness(slug, patch = {}) {
+    const b = getBusiness(slug);
+    const int = (v, lo, hi, msg) => {
+      if (!Number.isInteger(v) || v < lo || v > hi) throw new HttpError(400, 'bad_value', msg);
+      return v;
+    };
+    const next = { name: b.name, reward: b.reward, visits: b.visits_required, minHours: b.min_hours_between_visits, maxNotices: b.max_notices_per_month };
+    if (patch.name !== undefined) {
+      next.name = String(patch.name).trim();
+      if (next.name.length < 2 || next.name.length > 40) throw new HttpError(400, 'bad_name', 'El nombre debe tener entre 2 y 40 caracteres.');
+    }
+    if (patch.reward !== undefined) {
+      next.reward = String(patch.reward).trim();
+      if (next.reward.length < 2 || next.reward.length > 60) throw new HttpError(400, 'bad_reward', 'El premio debe tener entre 2 y 60 caracteres.');
+    }
+    if (patch.visitsRequired !== undefined) next.visits = int(patch.visitsRequired, 2, 24, 'Las visitas deben estar entre 2 y 24.');
+    if (patch.minHoursBetweenVisits !== undefined) next.minHours = int(patch.minHoursBetweenVisits, 0, 720, 'Horas entre visitas: 0 a 720.');
+    if (patch.maxNoticesPerMonth !== undefined) next.maxNotices = int(patch.maxNoticesPerMonth, 0, 20, 'Avisos por mes: 0 a 20.');
+    const brand = { ...brandOf(b) };
+    for (const [k, v] of Object.entries(patch.brand || {})) {
+      if (v === null || v === '') delete brand[k]; else brand[k] = v;
+    }
+    const brandJson = JSON.stringify(normalizeBrand(brand));
+    const cosmetic = brandJson !== b.brand_json || next.reward !== b.reward || next.visits !== b.visits_required || next.name !== b.name;
+    db.prepare(`UPDATE businesses SET name = ?, reward = ?, visits_required = ?, min_hours_between_visits = ?,
+      max_notices_per_month = ?, brand_json = ? WHERE id = ?`)
+      .run(next.name, next.reward, next.visits, next.minHours, next.maxNotices, brandJson, b.id);
+    if (next.visits < b.visits_required) db.prepare('UPDATE customers SET visits = MIN(visits, ?) WHERE business_id = ?').run(next.visits, b.id);
+    const fresh = getBusiness(slug);
+    if (cosmetic) refreshPasses(fresh); // los pases ya instalados se refrescan con el nuevo diseño
+    return publicBusiness(fresh);
+  }
+
+  function regenerateKeys(slug, which) {
+    const b = getBusiness(slug);
+    if (!['staff', 'admin', 'both'].includes(which)) throw new HttpError(400, 'bad_which', 'Indica staff, admin o both.');
+    const keys = {};
+    for (const role of ['staff', 'admin']) {
+      if (which !== role && which !== 'both') continue;
+      keys[role] = crypto.randomBytes(18).toString('base64url');
+      db.prepare(`UPDATE businesses SET ${role}_key_hash = ? WHERE id = ?`).run(sha256(keys[role]), b.id);
+    }
+    return { keys };
+  }
+
+  function deleteBusiness(slug, actor) {
+    const b = getBusiness(slug);
+    const ids = db.prepare('SELECT id FROM customers WHERE business_id = ?').all(b.id);
+    for (const { id } of ids) deleteCustomer(b, id, actor); // reutiliza los hooks (Google marca el pase como inactivo)
+    db.transaction(() => {
+      for (const t of ['notices', 'events']) db.prepare(`DELETE FROM ${t} WHERE business_id = ?`).run(b.id);
+      db.prepare('DELETE FROM businesses WHERE id = ?').run(b.id);
+    })();
+    return { deleted: true, customers: ids.length };
+  }
+
   return {
+    listBusinesses, updateBusiness, regenerateKeys, deleteBusiness,
     getSettings, updateSettings, metrics, runAutomations, extraInfo, proximity, refCodeFor,
     createBusiness, getBusiness, roleFor, codeFor, brandOf, customerFromCode, publicCustomer,
     register, listCustomers, getCustomer, scan, redeem,

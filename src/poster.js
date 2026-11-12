@@ -28,13 +28,14 @@ function qrSvg(url, px = 1000) {
 const qrPng = (url, px = 1000) => sharp(Buffer.from(qrSvg(url, px))).png().toBuffer();
 
 async function logoBuffer(b, brand, logosDir) {
-  const file = path.join(logosDir, `${b.slug}.png`);
-  if (/^[a-z0-9-]+$/.test(b.slug) && fs.existsSync(file)) return sharp(file).resize(400, 400, { fit: 'cover' }).png().toBuffer();
+  const own = logosDir ? path.join(logosDir, `${b.slug}.png`) : null;
+  const file = own && /^[a-z0-9-]+$/.test(b.slug) && fs.existsSync(own) ? own : require('./logos').find(b.slug);
+  if (file) return sharp(file).resize(400, 400, { fit: 'cover' }).png().toBuffer();
   return stamps.icon(400, brand);
 }
 
 /** Cartel vertical (A4) listo para imprimir. `width` en píxeles (2480 = A4 a 300 ppp). */
-async function posterPng(b, brand, url, { width = 2480, logosDir = path.join(__dirname, '..', 'assets', 'logos') } = {}) {
+async function posterPng(b, brand, url, { width = 2480, logosDir = null } = {}) {
   const W = 1240, H = 1754;
   const name = String(b.name).toUpperCase();
   const nameSize = Math.min(96, Math.floor(1000 / (name.length * 0.8)));

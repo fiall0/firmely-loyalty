@@ -27,6 +27,7 @@ if (!secret && process.env.NODE_ENV === 'production') {
 const file = process.env.DB_FILE || path.join(__dirname, '..', 'data', 'loyalty.db');
 fs.mkdirSync(path.dirname(file), { recursive: true });
 
+process.env.LOGOS_DIR = process.env.LOGOS_DIR || path.join(path.dirname(file), 'logos'); // logos subidos desde el panel (en el volumen)
 const db = open(file);
 // Aquí se conectarán los adaptadores de Apple y Google Wallet (etapas 3 y 4).
 const hooks = {
@@ -82,4 +83,5 @@ const automate = () => { try { svc.runAutomations(); } catch (e) { console.error
 setTimeout(automate, 60 * 1000).unref();
 setInterval(automate, 60 * 60 * 1000).unref();
 const port = Number(process.env.PORT || 3000);
-createApp(svc, { apple, google }).listen(port, () => console.log(`Fidelidad escuchando en :${port}`));
+if (!process.env.FIRMELY_ADMIN_KEY) console.log('Panel Firmely desactivado: define FIRMELY_ADMIN_KEY para usar /firmely.');
+createApp(svc, { apple, google, firmelyKey: process.env.FIRMELY_ADMIN_KEY }).listen(port, () => console.log(`Fidelidad escuchando en :${port}`));

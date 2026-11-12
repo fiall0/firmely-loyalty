@@ -5,6 +5,7 @@ const os = require('os');
 const path = require('path');
 const http = require('http');
 const sharp = require('sharp');
+const { unzipSync } = require('fflate');
 const { open } = require('../src/db');
 const { createService } = require('../src/service');
 const { createApp } = require('../src/app');
@@ -83,6 +84,14 @@ test('crear, listar, editar, llaves, logo y borrar', async () => {
     assert.equal(svc.roleFor(svc.getBusiness('sayonara'), nk.staff), 'staff');
     assert.equal(svc.roleFor(svc.getBusiness('sayonara'), keys.admin), 'admin');
     assert.equal((await call('POST', '/firmely/api/businesses/sayonara/keys', { which: 'x' })).status, 400);
+
+    // paquete descargable (sin Apple configurado no trae .pkpass) y sin dejar clientes de ejemplo
+    r = await call('GET', '/firmely/api/businesses/sayonara/package.zip');
+    assert.equal(r.status, 200);
+    const names = Object.keys(unzipSync(new Uint8Array(await r.arrayBuffer())));
+    for (const n of ['sayonara/ficha.html', 'sayonara/logo.png', 'sayonara/cartel-qr.png', 'sayonara/qr-registro.png', 'sayonara/qr-registro.svg']) assert.ok(names.includes(n), n);
+    assert.equal((await call('GET', '/firmely/api/businesses/sayonara/sample.pkpass')).status, 503);
+    assert.equal((await (await call('GET', '/firmely/api/businesses')).json()).businesses[0].customers, 0);
 
     // borrar con y sin confirmación, con clientes
     svc.register(svc.getBusiness('sayonara'), { name: 'Ana Pérez', phone: '8095550100', consent: true });

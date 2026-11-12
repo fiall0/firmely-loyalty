@@ -129,6 +129,16 @@ async function api(path, opts = {}) {
   if (!r.ok) throw new Error(j.message || 'Error ' + r.status);
   return j;
 }
+async function download(path, name, btn) {
+  const old = btn && btn.textContent; if (btn) { btn.disabled = true; btn.textContent = 'Generando…'; }
+  try {
+    const r = await fetch('/firmely/api' + path, { headers: { 'x-firmely-key': KEY } });
+    if (!r.ok) { let m = 'Error ' + r.status; try { m = (await r.json()).message || m; } catch {} throw new Error(m); }
+    const url = URL.createObjectURL(await r.blob());
+    const a = h('a', { href: url, download: name }); document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+  } catch (e) { toast(e.message); }
+  if (btn) { btn.disabled = false; btn.textContent = old; }
+}
 function logout(msg) { KEY = ''; try { sessionStorage.removeItem('fk'); } catch {} renderLogin(msg); }
 document.getElementById('out').onclick = () => logout();
 document.getElementById('home').onclick = () => { location.hash = '#/'; };
@@ -399,6 +409,11 @@ function renderLoyalty(b) {
       h('div', { class: 'card' }, h('h2', {}, 'Enlaces'),
         link('Registro', `${u}/r/${b.slug}`), link('Caja', `${u}/caja/${b.slug}`), link('Panel', `${u}/admin/${b.slug}`),
         link('Cartel QR', `${u}/api/${b.slug}/poster.png?download=1`), link('QR (PNG)', `${u}/api/${b.slug}/qr.png`)),
+      h('div', { class: 'card' }, h('h2', {}, 'Descargas'),
+        h('div', { class: 'muted small' }, 'Paquete: ficha, logo, cartel con QR, QR (PNG y SVG) y una tarjeta de ejemplo. Las llaves no vienen incluidas.'),
+        h('div', { class: 'two' },
+          h('button', { class: 'btn', onclick: (e) => download(`/businesses/${b.slug}/package.zip`, `Firmely-${b.slug}.zip`, e.currentTarget) }, 'Descargar paquete del negocio'),
+          h('button', { class: 'btn alt', onclick: (e) => download(`/businesses/${b.slug}/sample.pkpass`, `${b.slug}-ejemplo.pkpass`, e.currentTarget) }, 'Tarjeta de ejemplo (.pkpass)'))),
       h('div', { class: 'card' }, h('h2', {}, 'Llaves de acceso'), keysCard()),
       h('div', { class: 'card' }, h('h2', {}, 'Apariencia y reglas'), f.el,
         h('div', {}, h('label', {}, 'Así se ve la tarjeta guardada (sellos a la mitad)'), strip), err, okm, save),

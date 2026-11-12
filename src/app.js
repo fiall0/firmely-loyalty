@@ -26,7 +26,7 @@ function createApp(svc, { apple, google, firmelyKey, adminHost = process.env.ADM
     return res.status(404).json({ error: 'not_found' });
   });
   app.use('/firmely/assets', express.static(require('path').join(__dirname, 'brand'), { maxAge: '1d', index: false }));
-  app.use('/firmely/api', createFirmelyRouter(svc, { key: firmelyKey, loyaltyUrl }));
+  app.use('/firmely/api', createFirmelyRouter(svc, { key: firmelyKey, loyaltyUrl, apple }));
   app.get('/firmely', (_req, res) => res.sendFile(panelFile));
   app.use(express.json({ limit: '10kb' }));
 

@@ -1,14 +1,18 @@
 // Panel general de Firmely: gestiona los negocios (clientes) y, dentro de cada uno, sus servicios.
 // Se protege con FIRMELY_ADMIN_KEY (variable de entorno); sin ella el panel queda desactivado.
 const crypto = require('crypto');
+const fs = require('fs');
 const express = require('express');
 const { HttpError } = require('./service');
+const { zipSync, strToU8 } = require('fflate');
 const logos = require('./logos');
+const poster = require('./poster');
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 const sha = (s) => crypto.createHash('sha256').update(String(s)).digest();
 const asHttp = (e) => (e && e.status && !(e instanceof HttpError) ? new HttpError(e.status, e.code || 'error', e.message) : e);
 
-function createFirmelyRouter(svc, { key, loyaltyUrl = '' } = {}) {
+function createFirmelyRouter(svc, { key, loyaltyUrl = '', apple = null } = {}) {
   const r = express.Router();
   r.use(express.json({ limit: '5mb' }));
   const want = key ? sha(key) : null;
@@ -62,6 +66,47 @@ function createFirmelyRouter(svc, { key, loyaltyUrl = '' } = {}) {
     logos.remove(req.params.slug);
     res.json(out);
   });
+
+  const baseOf = (req) => (loyaltyUrl || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
+  const samplePass = (slug) => {
+    if (!apple) throw new HttpError(503, 'apple_off', 'Apple Wallet no está configurado en este servidor.');
+    return svc.withSampleCustomer(slug, (id, b) => apple.buildPass(b, id));
+  };
+
+  r.get('/businesses/:slug/sample.pkpass', wrap(async (req, res) => {
+    const buf = await samplePass(req.params.slug);
+    res.set({ 'content-type': 'application/vnd.apple.pkpass', 'content-disposition': `attachment; filename="${req.params.slug}-ejemplo.pkpass"` }).send(buf);
+  }));
+
+  r.get('/businesses/:slug/package.zip', wrap(async (req, res) => {
+    const b = svc.getBusiness(req.params.slug);
+    const brand = svc.brandOf(b);
+    const base = baseOf(req);
+    const reg = `${base}/r/${b.slug}`;
+    const urls = { registro: reg, caja: `${base}/caja/${b.slug}`, panel: `${base}/admin/${b.slug}` };
+    const files = {};
+    const add = (name, data) => { files[`${b.slug}/${name}`] = data instanceof Uint8Array ? data : strToU8(data); };
+    const logoPath = logos.find(b.slug);
+    if (logoPath) add('logo.png', new Uint8Array(fs.readFileSync(logoPath)));
+    add('cartel-qr.png', new Uint8Array(await poster.posterPng(b, brand, reg, { width: 1200 })));
+    add('qr-registro.png', new Uint8Array(await poster.qrPng(reg, 1200)));
+    add('qr-registro.svg', poster.qrSvg(reg, 1200));
+    try { add('tarjeta-ejemplo.pkpass', new Uint8Array(await samplePass(b.slug))); } catch (e) { if (!(e instanceof HttpError)) throw e; }
+    const row = (k, v) => `<tr><th>${esc(k)}</th><td>${v}</td></tr>`;
+    const link = (u) => `<a href="${esc(u)}">${esc(u)}</a>`;
+    add('ficha.html', `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Ficha · ${esc(b.name)}</title>
+<style>body{font:15px/1.5 'DM Sans',Arial,sans-serif;color:#0F1C2E;max-width:760px;margin:40px auto;padding:0 20px}h1{font-family:'DM Serif Display',Georgia,serif;font-weight:400;font-size:34px;margin:0}
+.bar{background:#1E3F6F;color:#fff;padding:22px 26px;border-radius:14px;margin-bottom:24px}.bar small{letter-spacing:.16em;text-transform:uppercase;opacity:.6;font-size:11px}
+table{width:100%;border-collapse:collapse;margin:8px 0 26px}th{text-align:left;width:34%;color:#5A6A7E;font-weight:500;padding:9px 12px;border-bottom:1px solid #E1E7F0;vertical-align:top}td{padding:9px 12px;border-bottom:1px solid #E1E7F0;word-break:break-all}
+h2{font-size:15px;letter-spacing:.1em;text-transform:uppercase;color:#1F5A9B;margin:26px 0 0}.sw{display:inline-block;width:14px;height:14px;border-radius:50%;border:1px solid #ccc;vertical-align:-2px;margin-right:6px}</style></head><body>
+<div class="bar"><small>Firmely · Tarjeta de fidelidad</small><h1>${esc(b.name)}</h1></div>
+<h2>Enlaces</h2><table>${row('Registro (clientes)', link(urls.registro))}${row('Caja (escáner)', link(urls.caja))}${row('Panel del negocio', link(urls.panel))}</table>
+<h2>Reglas</h2><table>${row('Identificador', esc(b.slug))}${row('Premio', esc(b.reward))}${row('Visitas para ganarlo', b.visits_required)}${row('Horas mínimas entre visitas', b.min_hours_between_visits)}${row('Avisos máximos por mes', b.max_notices_per_month)}</table>
+<h2>Diseño</h2><table>${row('Fondo', `<span class="sw" style="background:${esc(brand.bg)}"></span>${esc(brand.bg)}`)}${row('Texto', `<span class="sw" style="background:${esc(brand.fg)}"></span>${esc(brand.fg)}`)}${row('Ícono de sellos', esc(brand.icon))}${row('Unidad', esc([brand.unit, brand.units, brand.unitsLong].filter(Boolean).join(' / ') || 'visita / visitas'))}</table>
+<h2>Llaves</h2><p>Las llaves de caja y admin no se guardan en claro, por eso no vienen en este archivo. Si se perdieron, regenéralas desde el panel de Firmely.</p>
+<p style="color:#5A6A7E;font-size:13px">Generado el ${new Date().toISOString().slice(0, 10)} · Edward Fiallo · Firmely</p></body></html>`);
+    res.set({ 'content-type': 'application/zip', 'content-disposition': `attachment; filename="Firmely-${b.slug}.zip"` }).send(Buffer.from(zipSync(files)));
+  }));
 
   return r;
 }

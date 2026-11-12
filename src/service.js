@@ -304,6 +304,19 @@ function createService({ db, secret, now = () => new Date(), hooks = {} }) {
     return { deleted: true };
   })();
 
+  /** Crea un cliente de ejemplo SIN avisar a Apple/Google, corre fn(customerId) y lo borra. */
+  async function withSampleCustomer(slug, fn) {
+    const b = getBusiness(slug);
+    const norm = `ejemplo${crypto.randomBytes(4).toString('hex')}`;
+    const half = Math.floor(b.visits_required / 2);
+    const id = db.prepare(`INSERT INTO customers (business_id, name, phone, phone_norm, visits, consent_at, created_at)
+      VALUES (?,?,?,?,?,?,?)`).run(b.id, 'Cliente Ejemplo', '(809) 555-0100', norm, half, iso(), iso()).lastInsertRowid;
+    try { return await fn(Number(id), b); } finally {
+      for (const t of ['apple_registrations', 'notice_deliveries', 'pass_changes', 'events']) db.prepare(`DELETE FROM ${t} WHERE customer_id = ?`).run(id);
+      db.prepare('DELETE FROM customers WHERE id = ?').run(id);
+    }
+  }
+
   function stats(b) {
     const since = new Date(now().getTime() - 7 * DAY).toISOString();
     return {
@@ -606,7 +619,7 @@ function createService({ db, secret, now = () => new Date(), hooks = {} }) {
     getSettings, updateSettings, metrics, runAutomations, extraInfo, proximity, refCodeFor,
     createBusiness, getBusiness, roleFor, codeFor, brandOf, customerFromCode, publicCustomer,
     register, listCustomers, getCustomer, scan, redeem,
-    updateCustomer, resetVisits, deleteCustomer, stats, sendNotice,
+    updateCustomer, resetVisits, deleteCustomer, stats, sendNotice, withSampleCustomer,
   };
 }
 

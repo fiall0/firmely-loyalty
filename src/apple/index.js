@@ -9,7 +9,7 @@ const express = require('express');
 const { zipSync } = require('fflate');
 const sharp = require('sharp');
 const stamps = require('../stamps');
-const { statusText, unitsOf } = require('../text');
+const { statusText, unitsOf, pointsInfo } = require('../text');
 const { HttpError } = require('../service');
 
 const sha1 = (buf) => crypto.createHash('sha1').update(buf).digest('hex');
@@ -73,6 +73,8 @@ function createApple({ db, svc, secret, config, push }) {
   const tokenFor = (serial) => crypto.createHmac('sha256', secret).update(`apple.${serial}`).digest('hex');
 
   function captionText(b, c) {
+    const pi = pointsInfo(b, c);
+    if (pi) return pi.label;
     const rem = b.visits_required - c.visits;
     if (rem <= 0) return `¡Tu ${b.reward.toLowerCase()} está listo!`;
     if (c.visits === 0) return `Junta ${b.visits_required} ${unitsOf(b).many} y gana tu ${b.reward.toLowerCase()}`;
@@ -97,6 +99,7 @@ function createApple({ db, svc, secret, config, push }) {
     const brand = svc.brandOf(b);
     const serial = serialFor(b.slug, row.id);
     const required = b.visits_required;
+    const pi = pointsInfo(b, row);
     const prox = svc.proximity(b);
     const extra = svc.extraInfo(b, row, base).map((e) => ({ key: e.key, label: e.label, value: e.text }));
     return {
@@ -115,9 +118,10 @@ function createApple({ db, svc, secret, config, push }) {
       authenticationToken: tokenFor(serial),
       barcodes: [{ format: 'PKBarcodeFormatQR', message: svc.codeFor(b.slug, row.id), messageEncoding: 'iso-8859-1' }],
       storeCard: {
-        headerFields: [{ key: 'visits', label: 'VISITAS', value: `${row.visits} de ${required}` }],
+        headerFields: [pi ? { key: 'visits', label: 'PUNTOS', value: String(row.visits) } : { key: 'visits', label: 'VISITAS', value: `${row.visits} de ${required}` }],
         secondaryFields: [
-          { key: 'reward', label: 'RECOMPENSA', value: b.reward },
+          pi ? { key: 'reward', label: 'PRÓXIMO PREMIO', value: pi.next ? `${pi.next.name} (${pi.next.cost} pts)` : 'Todos disponibles' }
+            : { key: 'reward', label: 'RECOMPENSA', value: b.reward },
           { key: 'member', label: 'MIEMBRO', value: row.name, textAlignment: 'PKTextAlignmentRight' },
         ],
         backFields: [
@@ -125,7 +129,8 @@ function createApple({ db, svc, secret, config, push }) {
           { key: 'aviso', label: 'Último aviso', value: lastNotice(row.id) || 'Sin avisos', changeMessage: '%@' },
           { key: 'member_id', label: 'ID de miembro', value: String(row.id).padStart(6, '0') },
           { key: 'terms', label: 'Cómo funciona',
-            value: `Muestra este código en caja en cada ${unitsOf(b).one}. A las ${required} ${unitsOf(b).many} ganas: ${b.reward}.` },
+            value: pi ? `Muestra este código en caja al pagar. Ganas 1 punto por cada RD$${pi.cfg.points.pesosPerPoint}. Premios: ${pi.rewards.map((r) => `${r.name} (${r.cost} pts)`).join(', ')}.`
+              : `Muestra este código en caja en cada ${unitsOf(b).one}. A las ${required} ${unitsOf(b).many} ganas: ${b.reward}.` },
           ...extra,
         ],
       },
@@ -139,7 +144,9 @@ function createApple({ db, svc, secret, config, push }) {
     const brand = svc.brandOf(b);
     const files = {
       'pass.json': Buffer.from(JSON.stringify(passJson(b, row))),
-      ...(await stamps.appleStripFiles(Math.min(row.visits, b.visits_required), { total: b.visits_required, brand, caption: captionText(b, row) })),
+      ...(pointsInfo(b, row)
+        ? await stamps.applePointsFiles(row.visits, { goal: (pointsInfo(b, row).next || {}).cost || 0, label: captionText(b, row), brand })
+        : await stamps.appleStripFiles(Math.min(row.visits, b.visits_required), { total: b.visits_required, brand, caption: captionText(b, row) })),
     };
     const logoFile = logoFileFor(b.slug);
     if (logoFile) {

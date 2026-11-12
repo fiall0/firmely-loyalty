@@ -43,7 +43,8 @@ async function posterPng(b, brand, url, { width = 2480, logosDir = null } = {}) 
   const m = 4, qrPx = 640, pad = 50;
   const logo = (await logoBuffer(b, brand, logosDir)).toString('base64');
   const reward = String(b.reward || '').toLowerCase();
-  const line = `${b.visits_required} ${unitsOf(b).long} = ${reward}`;
+  const pcfg = require('./settings').normalizeSettings(JSON.parse(b.settings_json || '{}'));
+  const line = pcfg.mode === 'points' ? `1 punto por cada RD$${pcfg.points.pesosPerPoint} de consumo` : `${b.visits_required} ${unitsOf(b).long} = ${reward}`;
   const lineSize = Math.min(60, Math.floor(1060 / (line.length * 0.56)));
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
 <defs><clipPath id="c"><circle cx="${W / 2}" cy="270" r="150"/></clipPath></defs>

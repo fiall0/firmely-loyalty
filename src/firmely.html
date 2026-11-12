@@ -71,6 +71,7 @@ img.strip{width:100%;max-width:420px;border-radius:12px;border:1px solid var(--b
 .login .box img{height:46px;margin:0 auto 10px}.login .box p{color:rgba(255,255,255,.6)}
 .login input{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#fff;text-align:center}.login input::placeholder{color:rgba(255,255,255,.4)}.login input:focus{border-color:rgba(255,255,255,.5)}
 .login .err{color:#FFB4AB}
+[hidden]{display:none!important}
 </style>
 </head>
 <body>
@@ -274,8 +275,46 @@ function bizForm(b, mode) {
     rd.onload = () => { logoData = rd.result; logoPrev.src = rd.result; logoPrev.hidden = false; draw(); };
     rd.readAsDataURL(f);
   });
+  // Tipo de tarjeta: sellos (por visita) o puntos (por consumo).
+  const bz = b || {};
+  const modeSel = h('select', {}, [['stamps', 'Sellos: el cliente junta visitas'], ['points', 'Puntos: el cliente acumula según lo que gasta']]
+    .map(([v, t]) => h('option', { value: v, selected: v === (bz.mode || 'stamps') }, t)));
+  const per = h('input', { type: 'number', min: 1, max: 100000, value: (bz.points && bz.points.pesosPerPoint) || 100 });
+  const rewardRows = h('div', { style: 'display:flex;flex-direction:column;gap:8px' });
+  const addReward = (r) => {
+    const n = h('input', { type: 'text', maxlength: 40, value: r ? r.name : '', placeholder: 'Ej: Bebida gratis', style: 'flex:2' });
+    const c = h('input', { type: 'number', min: 1, max: 100000, value: r ? r.cost : '', placeholder: 'Puntos', style: 'flex:1' });
+    const row = h('div', { class: 'row' }, n, c, h('button', { type: 'button', class: 'btn alt sm', onclick: () => { row.remove(); draw(); } }, 'Quitar'));
+    row._get = () => ({ id: r && r.id, name: n.value.trim(), cost: Number(c.value) });
+    [n, c].forEach((i) => i.addEventListener('input', () => draw()));
+    rewardRows.appendChild(row);
+  };
+  ((bz.points && bz.points.rewards) || []).forEach(addReward);
+  const rewardsOut = () => Array.from(rewardRows.children).map((r) => r._get());
+  const pointsBox = h('div', { style: 'display:flex;flex-direction:column;gap:12px' },
+    h('div', {}, h('label', {}, 'Pesos por cada punto (RD$)'), per, h('div', { class: 'muted small', style: 'margin-top:6px' }, 'Ej: 100 = el cliente gana 1 punto por cada RD$100 de consumo.')),
+    h('div', {}, h('label', {}, 'Premios que puede canjear'), rewardRows,
+      h('button', { type: 'button', class: 'btn alt sm', style: 'margin-top:8px', onclick: () => addReward(null) }, '+ Agregar premio'),
+      mode === 'edit' ? h('div', { class: 'muted small', style: 'margin-top:8px' }, 'Si cambias entre sellos y puntos, los saldos de los clientes se reinician a 0.') : null));
+  const stampsOnly = [];
+  const isPoints = () => modeSel.value === 'points';
   const mock = h('div', { class: 'mock' });
   function draw() {
+    if (isPoints()) {
+      const bg = cBg.get() || '#0F1720', fg = cFg.get() || '#FFFFFF';
+      const rw = rewardsOut().filter((r) => r.name && r.cost > 0).sort((a, c) => a.cost - c.cost), first = rw[0];
+      const pts = first ? Math.round(first.cost * .6) : 30;
+      mock.style.background = bg; mock.style.color = fg;
+      mock.replaceChildren(
+        h('div', { class: 'mh' }, logoPrev.src && !logoPrev.hidden ? h('img', { src: logoPrev.src, alt: '' }) : null, (name.value || 'Tu negocio').toUpperCase()),
+        h('div', { class: 'ms', style: `background:${cStrip.get() || mix(bg, fg, .08)};display:block;padding:14px` },
+          h('div', { style: 'font-size:34px;font-weight:700;line-height:1' }, String(pts), h('span', { style: 'font-size:14px;font-weight:400;opacity:.75;margin-left:8px' }, 'puntos')),
+          h('div', { style: `height:8px;border-radius:4px;background:${fg}38;margin-top:12px` }, h('div', { style: `height:8px;border-radius:4px;background:${cStamp.get() || fg};width:60%` })),
+          h('div', { style: 'font-size:12px;opacity:.85;margin-top:6px' }, first ? `${first.cost - pts} pts para ${first.name}` : 'Agrega un premio')),
+        h('div', { class: 'mf' }, h('span', {}, 'PRÓXIMO PREMIO'), h('span', {}, 'PUNTOS')),
+        h('div', { class: 'mf', style: 'font-size:14px;font-weight:600' }, h('span', {}, first ? first.name : 'Premio'), h('span', {}, String(pts))));
+      return;
+    }
     const bg = cBg.get() || '#0F1720', fg = cFg.get() || '#FFFFFF';
     const strip = cStrip.get() || mix(bg, fg, .08), stamp = cStamp.get() || fg, ink = cInk.get() || bg;
     const total = Math.min(24, Math.max(2, Number(visits.value) || 10)), done = Math.floor(total / 2);
@@ -289,25 +328,32 @@ function bizForm(b, mode) {
       h('div', { class: 'mf', style: 'font-size:14px;font-weight:600' }, h('span', {}, reward.value || 'Premio'), h('span', {}, `${done} de ${total}`)));
   }
   [cBg, cFg, cStrip, cStamp, cInk].forEach((c) => c.onchange(draw));
-  [reward, visits].forEach((i) => i.addEventListener('input', draw));
-  draw();
+  [reward, visits, per].forEach((i) => i.addEventListener('input', draw));
+  const applyMode = () => { const p = isPoints(); pointsBox.hidden = !p; stampsOnly.forEach((e) => { e.hidden = p; }); draw(); };
+  modeSel.addEventListener('change', applyMode);
   const L = (t, el) => h('div', {}, h('label', {}, t), el);
+  const rowReward = h('div', { class: 'f2' }, L('Premio', reward), L('Visitas para ganarlo', visits));
+  const rowUnits = h('div', { class: 'f3' }, L('Se cuenta (singular)', unit), L('Se cuenta (plural)', units), L('En el cartel (largo)', unitsLong));
+  const rowMisc = h('div', { class: 'f3' }, L('Icono de los sellos', icon), L('Horas entre visitas', minH), L('Avisos máx. por mes', maxN));
+  stampsOnly.push(rowReward, rowUnits, rowMisc);
   const el = h('div', { style: 'display:flex;flex-direction:column;gap:16px' },
     h('div', { class: mode === 'create' ? 'f2' : '' }, L('Nombre del negocio', name), mode === 'create' ? L('Identificador (se usa en los enlaces y no se puede cambiar)', slug) : null),
-    h('div', { class: 'f2' }, L('Premio', reward), L('Visitas para ganarlo', visits)),
-    h('div', { class: 'f3' }, L('Se cuenta (singular)', unit), L('Se cuenta (plural)', units), L('En el cartel (largo)', unitsLong)),
-    h('div', { class: 'f3' }, L('Icono de los sellos', icon), L('Horas entre visitas', minH), L('Avisos máx. por mes', maxN)),
+    L('Tipo de tarjeta', modeSel),
+    rowReward, pointsBox, rowUnits, rowMisc,
     h('div', { class: 'f2' }, cBg.el, cFg.el),
     h('div', { class: 'f3' }, cStrip.el, cStamp.el, cInk.el),
     h('div', { class: 'row', style: 'align-items:flex-start;flex-wrap:wrap' }, h('div', { style: 'flex:1;min-width:230px' }, L('Logo (PNG, JPG o WEBP, hasta 3 MB)', file), h('div', { class: 'muted small', style: 'margin-top:6px' }, 'Se ajusta a un círculo cuadrado sobre el color de fondo.')), logoPrev),
     h('div', {}, h('label', {}, 'Vista previa'), mock));
+  applyMode();
   return {
     el,
     values() {
       const t = (i) => (i.value.trim() ? i.value.trim().toLowerCase() : null);
+      const pts = isPoints();
       return {
-        slug: slug.value.trim(), name: name.value.trim(), reward: reward.value.trim(), visitsRequired: Number(visits.value),
-        minHoursBetweenVisits: Number(minH.value), maxNoticesPerMonth: Number(maxN.value),
+        slug: slug.value.trim(), name: name.value.trim(), mode: modeSel.value,
+        ...(pts ? { points: { pesosPerPoint: Number(per.value), rewards: rewardsOut() }, maxNoticesPerMonth: Number(maxN.value) }
+          : { reward: reward.value.trim(), visitsRequired: Number(visits.value), minHoursBetweenVisits: Number(minH.value), maxNoticesPerMonth: Number(maxN.value) }),
         brand: { bg: cBg.get(), fg: cFg.get(), icon: icon.value, unit: t(unit), units: t(units), unitsLong: t(unitsLong), stripBg: cStrip.get(), stamp: cStamp.get(), stampInk: cInk.get() },
         ...(logoData ? { logo: logoData } : {}),
       };
@@ -403,7 +449,7 @@ function renderLoyalty(b) {
     crumb(home(), h('a', { href: `#/n/${b.slug}` }, b.name), 'Tarjeta de fidelidad'),
     h('div', { class: 'row' }, h('img', { class: 'logo lg', src: `/api/${b.slug}/logo.png?v=${Date.now() % 1e6}`, alt: '' }),
       h('div', {}, h('h1', {}, b.name), h('div', { class: 'muted' }, 'Tarjeta de fidelidad'))),
-    h('div', { class: 'kpis' }, [['Clientes', b.customers], ['Visitas (7 días)', b.visitsThisWeek], ['Premios canjeados', b.rewardsRedeemed], ['Meta', `${b.visitsRequired} → ${b.reward}`]]
+    h('div', { class: 'kpis' }, [['Clientes', b.customers], [b.mode === 'points' ? 'Compras (7 días)' : 'Visitas (7 días)', b.visitsThisWeek], ['Premios canjeados', b.rewardsRedeemed], [b.mode === 'points' ? 'Premios' : 'Meta', b.mode === 'points' ? b.points.rewards.map((r) => `${r.name} ${r.cost}`).join(' · ') || '—' : `${b.visitsRequired} → ${b.reward}`]]
       .map(([t, v]) => h('div', { class: 'kpi' }, h('span', {}, t), h('b', { style: typeof v === 'string' ? 'font-size:16px;line-height:1.3;padding-top:8px' : '' }, v)))),
     h('div', { style: 'display:flex;flex-direction:column;gap:16px' },
       h('div', { class: 'card' }, h('h2', {}, 'Enlaces'),

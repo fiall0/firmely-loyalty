@@ -334,11 +334,11 @@ async function loadList() {
   list = (await api('/customers?q=' + encodeURIComponent($('q').value.trim()))).customers;
   const box = $('rows'); box.textContent = '';
   const th = document.createElement('div'); th.className = 'row th';
-  ['Cliente', 'Teléfono', 'Visitas', 'Premios', 'Última visita'].forEach((t) => { const s = document.createElement('span'); s.textContent = t; th.appendChild(s); });
+  ['Cliente', 'Teléfono', (info && info.mode === 'points') ? 'Puntos' : 'Visitas', 'Premios', 'Última visita'].forEach((t) => { const s = document.createElement('span'); s.textContent = t; th.appendChild(s); });
   box.appendChild(th);
   for (const c of list) {
     const b = document.createElement('button'); b.className = 'row' + (sel === c.id ? ' sel' : '');
-    const cells = [c.name, c.phone, c.visits + ' de ' + c.required, String(c.rewardsRedeemed), ago(c.lastVisitAt)];
+    const cells = [c.name, c.phone, c.mode === 'points' ? c.points + ' pts' : c.visits + ' de ' + c.required, String(c.rewardsRedeemed), ago(c.lastVisitAt)];
     cells.forEach((t, i) => { const s = document.createElement(i === 0 ? 'b' : 'span'); s.textContent = t; if (i === 1 || i === 4) s.className = 'muted'; b.appendChild(s); });
     b.onclick = () => pick(c.id); box.appendChild(b);
   }
@@ -347,16 +347,19 @@ async function loadList() {
 async function pick(id) {
   const first = sel !== id; sel = id; const d = await api('/customers/' + id); const c = d.customer;
   draft = { name: c.name, phone: c.phone, visits: c.visits }; cur = c; code = d.code;
-  $('noSel').hidden = true; $('editBody').hidden = false; $('addVisit').disabled = c.visits >= c.required; $('redeem').disabled = !c.rewardAvailable;
+  $('noSel').hidden = true; $('editBody').hidden = false; const pts = c.mode === 'points'; $('addVisit').textContent = pts ? 'Sumar puntos' : 'Sumar visita'; $('addVisit').disabled = !pts && c.visits >= c.required; $('redeem').disabled = !c.rewardAvailable;
    $('confirm').hidden = true; $('askReset').hidden = false; $('confirmDel').hidden = true; $('askDelete').hidden = false; show($('eOk')); show($('eErr'));
-  $('eName').value = draft.name; $('ePhone').value = draft.phone; $('eVisits').textContent = draft.visits + ' de ' + c.required; $('cName').textContent = c.name;
+  $('eName').value = draft.name; $('ePhone').value = draft.phone; $('eVisits').textContent = pts ? draft.visits + ' pts' : draft.visits + ' de ' + c.required; $('cName').textContent = c.name;
   const h = $('hist'); h.textContent = '';
   const L = { visit: 'Visita', redeem: 'Canje', edit: 'Edición', reset: 'Reinicio', register: 'Registro' };
   d.events.slice(0, 5).forEach((e) => { const s = document.createElement('span'); s.textContent = new Date(e.created_at).toLocaleDateString('es-DO') + ' · ' + (L[e.kind] || e.kind) + (e.actor ? ' · ' + e.actor : ''); h.appendChild(s); });
   Array.from($('rows').children).forEach((r, i) => r.classList.toggle('sel', i > 0 && list[i - 1].id === id));
   if (first && matchMedia('(max-width:1000px)').matches) $('editCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
-function stepVisits(n) { const m = info.visitsRequired; draft.visits = Math.max(0, Math.min(m, draft.visits + n)); $('eVisits').textContent = draft.visits + ' de ' + m; show($('eOk')); }
+function stepVisits(n) {
+  if (info.mode === 'points') { draft.visits = Math.max(0, draft.visits + n * 10); $('eVisits').textContent = draft.visits + ' pts'; return show($('eOk')); }
+  const m = info.visitsRequired; draft.visits = Math.max(0, Math.min(m, draft.visits + n)); $('eVisits').textContent = draft.visits + ' de ' + m; show($('eOk'));
+}
 $('minus').onclick = () => stepVisits(-1); $('plus').onclick = () => stepVisits(1);
 $('save').onclick = async () => {
   show($('eErr')); show($('eOk'));
@@ -369,7 +372,20 @@ $('save').onclick = async () => {
 async function act(path, okText) {
   show($('eErr')); show($('eOk'));
   try {
-    const r = await api(path, { method: 'POST', body: JSON.stringify({ code }) });
+    const body = { code };
+    if (info.mode === 'points') {
+      if (path === '/scan') {
+        const a = prompt('Monto de la compra en RD$ (0 solo consulta):'); if (a === null) return;
+        body.amount = Number(a);
+      } else {
+        const aff = (cur.rewards || []).filter((x) => x.affordable);
+        if (!aff.length) return show($('eErr'), 'Aún no alcanza ningún premio.');
+        const pickN = aff.length === 1 ? 1 : Number(prompt('¿Cuál premio?\n' + aff.map((x, i) => (i + 1) + ') ' + x.name + ' (' + x.cost + ' pts)').join('\n')));
+        if (!aff[pickN - 1]) return;
+        body.rewardId = aff[pickN - 1].id;
+      }
+    }
+    const r = await api(path, { method: 'POST', body: JSON.stringify(body) });
     await Promise.all([loadList(), loadStats()]); await pick(sel);
     if (r.status === 'too_soon') show($('eErr'), 'Ya sumó una visita hace poco. Podrá sumar otra desde ' + new Date(r.nextAllowedAt).toLocaleString('es-DO') + '.');
     else if (r.status === 'free_available') show($('eErr'), 'Ya completó sus visitas: canjea el premio.');
@@ -392,7 +408,7 @@ $('doDelete').onclick = async () => {
 };
 $('noReset').onclick = () => { $('confirm').hidden = true; $('askReset').hidden = false; };
 $('doReset').onclick = async () => {
-  try { await api('/customers/' + sel + '/reset', { method: 'POST', body: '{}' }); await Promise.all([loadList(), loadStats()]); await pick(sel); show($('eOk'), 'Visitas reiniciadas a 0.'); }
+  try { await api('/customers/' + sel + '/reset', { method: 'POST', body: '{}' }); await Promise.all([loadList(), loadStats()]); await pick(sel); show($('eOk'), 'Reiniciado a 0.'); }
   catch (e) { show($('eErr'), e.message); }
 };
 

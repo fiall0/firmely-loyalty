@@ -98,6 +98,46 @@ async function render(kind, visits, { total = 10, brand, scale = 1, caption = ''
   return buf;
 }
 
+/** Imagen de puntos: saldo grande + barra de avance hacia el siguiente premio. */
+function pointsSvg(kind, points, goal, brand, scale, label) {
+  const spec = KINDS[kind];
+  if (!spec) throw new RangeError('Tipo de imagen no válido.');
+  const { w, h } = spec;
+  const sc = brand.stamp || brand.fg;
+  const bg = kind === 'strip' ? (brand.stripBg || mix(brand.bg, brand.fg, 0.08)) : brand.bg;
+  const pad = w * 0.07;
+  const num = Number(points).toLocaleString('en-US');
+  const big = Math.min(h * 0.46, (w * 0.5) / Math.max(2, num.length * 0.62));
+  const pct = goal ? Math.max(0, Math.min(1, points / goal)) : 1;
+  const barY = h * 0.72, barH = Math.max(6, h * 0.085), barW = w - pad * 2;
+  const font = 'font-family="Helvetica, Arial, DejaVu Sans, sans-serif"';
+  const fs = Math.min(h * 0.115, (barW) / Math.max(8, label.length * 0.56));
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w * scale}" height="${h * scale}" viewBox="0 0 ${w} ${h}">` +
+    `<rect width="${w}" height="${h}" fill="${bg}"/>` +
+    `<text x="${pad}" y="${h * 0.5}" ${font} font-size="${big}" font-weight="700" fill="${sc}">${esc(num)}</text>` +
+    `<text x="${pad + num.length * big * 0.6 + 10}" y="${h * 0.5}" ${font} font-size="${h * 0.14}" fill="${sc}" fill-opacity="0.75">puntos</text>` +
+    `<rect x="${pad}" y="${barY}" width="${barW}" height="${barH}" rx="${barH / 2}" fill="${sc}" fill-opacity="0.22"/>` +
+    `<rect x="${pad}" y="${barY}" width="${Math.max(barH, barW * pct)}" height="${barH}" rx="${barH / 2}" fill="${sc}"/>` +
+    `<text x="${pad}" y="${barY + barH + fs + 4}" ${font} font-size="${fs.toFixed(2)}" fill="${sc}" fill-opacity="0.85">${esc(label)}</text></svg>`;
+}
+
+async function renderPoints(kind, points, { goal = 0, label = '', brand, scale = 1 } = {}) {
+  if (!Number.isInteger(points) || points < 0 || points > 1e9) throw new RangeError('Puntos fuera de rango.');
+  if (![1, 2, 3].includes(scale)) throw new RangeError('Escala no válida.');
+  const b = normalizeBrand(brand);
+  const key = `pts|${kind}|${points}|${goal}|${label}|${b.bg}|${b.fg}|${b.stripBg}|${b.stamp}|${scale}`;
+  if (cache.has(key)) return cache.get(key);
+  const buf = await sharp(Buffer.from(pointsSvg(kind, points, goal, b, scale, label))).png({ compressionLevel: 9 }).toBuffer();
+  if (cache.size > 500) cache.clear();
+  cache.set(key, buf);
+  return buf;
+}
+
+async function applePointsFiles(points, opts = {}) {
+  const [a, b, c] = await Promise.all([1, 2, 3].map((scale) => renderPoints('strip', points, { ...opts, scale })));
+  return { 'strip.png': a, 'strip@2x.png': b, 'strip@3x.png': c };
+}
+
 /** Icono cuadrado (tijeras sobre el color del negocio). Apple pide icon.png 29/58/87 px. */
 async function icon(size, brand) {
   const b = normalizeBrand(brand);
@@ -115,4 +155,4 @@ async function appleStripFiles(visits, opts = {}) {
   return { 'strip.png': a, 'strip@2x.png': b, 'strip@3x.png': c };
 }
 
-module.exports = { ICONS, STROKE, mix, icon, render, appleStripFiles, normalizeBrand, DEFAULT_BRAND, KINDS };
+module.exports = { renderPoints, applePointsFiles, ICONS, STROKE, mix, icon, render, appleStripFiles, normalizeBrand, DEFAULT_BRAND, KINDS };

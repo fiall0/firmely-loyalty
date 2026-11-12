@@ -35,7 +35,7 @@ function createApp(svc, { apple, google, firmelyKey, adminHost = process.env.ADM
   // Páginas del cliente y de caja
   app.get('/r/:slug', (req, res) => res.type('html').send((() => { const b = svc.getBusiness(req.params.slug); return pages.registro(b, { apple: !!apple, google: !!google }, svc.brandOf(b), svc.getSettings(b)); })()));
   app.get('/admin/:slug', (req, res) => res.type('html').send((() => { const b = svc.getBusiness(req.params.slug); return pages.admin(b, svc.brandOf(b)); })()));
-  app.get('/caja/:slug', (req, res) => res.type('html').send((() => { const b = svc.getBusiness(req.params.slug); return pages.caja(b, svc.brandOf(b)); })()));
+  app.get('/caja/:slug', (req, res) => res.type('html').send((() => { const b = svc.getBusiness(req.params.slug); return pages.caja(b, svc.brandOf(b), svc.getSettings(b)); })()));
 
   app.get('/vendor/scanner.js', (_req, res) => res.sendFile(require('path').join(__dirname, 'scanner.js')));
   app.get('/vendor/jsqr.js', (_req, res) => res.sendFile(require.resolve('jsqr/dist/jsQR.js')));
@@ -70,7 +70,9 @@ function createApp(svc, { apple, google, firmelyKey, adminHost = process.env.ADM
   // Público
   r.get('/info', (req, res) => {
     const b = req.biz;
+    const cfg = svc.getSettings(b);
     res.json({ name: b.name, reward: b.reward, visitsRequired: b.visits_required,
+      mode: cfg.mode, ...(cfg.mode === 'points' ? { points: cfg.points } : {}),
       minHoursBetweenVisits: b.min_hours_between_visits, maxNoticesPerMonth: b.max_notices_per_month });
   });
   r.post('/register', registerLimit, (req, res) => {
@@ -81,9 +83,19 @@ function createApp(svc, { apple, google, firmelyKey, adminHost = process.env.ADM
   // Imágenes de sellos (públicas: Google Wallet las descarga desde una URL)
   r.get('/stamp/:file', async (req, res, next) => {
     try {
-      const m = /^(\d{1,2})(?:\.png)?$/.exec(req.params.file);
+      const cfg = svc.getSettings(req.biz);
       const kind = req.query.kind === 'hero' ? 'hero' : 'strip';
       const scale = kind === 'hero' ? 1 : Number(req.query.scale || 1);
+      if (cfg.mode === 'points') {
+        const mp = /^(\d{1,9})(?:\.png)?$/.exec(req.params.file);
+        if (!mp || ![1, 2, 3].includes(scale)) throw new HttpError(400, 'bad_stamp', 'Imagen no válida.');
+        const pts = Number(mp[1]);
+        const next = cfg.points.rewards.find((r) => r.cost > pts);
+        const label = next ? `${next.cost - pts} pts para ${next.name}` : '¡Ya puedes canjear tu premio!';
+        const png = await stamps.renderPoints(kind, pts, { goal: next ? next.cost : 0, label, brand: svc.brandOf(req.biz), scale });
+        return res.set({ 'content-type': 'image/png', 'cache-control': 'public, max-age=86400' }).send(png);
+      }
+      const m = /^(\d{1,2})(?:\.png)?$/.exec(req.params.file);
       const visits = m ? Number(m[1]) : NaN;
       if (!m || visits > req.biz.visits_required || ![1, 2, 3].includes(scale)) {
         throw new HttpError(400, 'bad_stamp', 'Imagen no válida.');
@@ -146,9 +158,9 @@ function createApp(svc, { apple, google, firmelyKey, adminHost = process.env.ADM
 
   // Caja (staff o admin)
   r.post('/scan', need('staff', 'admin'), (req, res) =>
-    res.json(svc.scan(req.biz, (req.body || {}).code, req.actor)));
+    res.json(svc.scan(req.biz, (req.body || {}).code, req.actor, (req.body || {}).amount)));
   r.post('/redeem', need('staff', 'admin'), (req, res) =>
-    res.json(svc.redeem(req.biz, (req.body || {}).code, req.actor)));
+    res.json(svc.redeem(req.biz, (req.body || {}).code, req.actor, (req.body || {}).rewardId)));
 
   // Panel (solo admin)
   r.get('/stats', need('admin'), (req, res) => res.json(svc.stats(req.biz)));

@@ -29,7 +29,7 @@ function shell(title, body, script, slug, brand) {
 }
 
 const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-function registro(b, on, brand, cfg = { birthday: {}, referral: {} }) {
+function registro(b, on, brand, cfg = { birthday: {}, referral: {}, mode: 'stamps' }) {
   const bday = cfg.birthday && cfg.birthday.enabled
     ? `<label>Cumpleaños (opcional)</label><div style="display:flex;gap:10px"><select id="bd" style="flex:1"><option value="">Día</option>${Array.from({ length: 31 }, (_, i) => `<option>${i + 1}</option>`).join('')}</select><select id="bm" style="flex:2"><option value="">Mes</option>${MONTHS.map((m, i) => `<option value="${i + 1}">${m}</option>`).join('')}</select></div><p class="small" style="margin:6px 0 0;color:var(--muted);font-size:12px">Solo usamos día y mes para enviarte un regalo.</p>`
     : '';
@@ -39,7 +39,9 @@ function registro(b, on, brand, cfg = { birthday: {}, referral: {} }) {
   const body = `<header class="hero">
 <div class="logo"><img src="/api/${esc(b.slug)}/logo.png" alt="Logo de ${esc(b.name)}" onerror="this.parentNode.hidden=true"></div>
 <h1>Tarjeta de fidelidad</h1>
-<p class="sub">${b.visits_required} ${esc(unitsOf(b).long)} = ${esc(b.reward.toLowerCase())}</p>
+<p class="sub">${cfg.mode === 'points'
+  ? `1 punto por cada RD$${cfg.points.pesosPerPoint} · ${cfg.points.rewards.map((r) => `${esc(r.name)} ${r.cost} pts`).join(' · ')}`
+  : `${b.visits_required} ${esc(unitsOf(b).long)} = ${esc(b.reward.toLowerCase())}`}</p>
 </header>
 <form id="f"><label>Nombre</label><input id="n" type="text" autocomplete="name" required>
 <label>Teléfono</label><input id="p" type="tel" autocomplete="tel" inputmode="tel" required>
@@ -68,14 +70,18 @@ if(g){g.href='/api/'+slug+'/google-wallet?code='+encodeURIComponent(j.code);g.hi
   return shell(`${b.name} · Tarjeta`, body, script, b.slug, brand);
 }
 
-function caja(b, brand) {
+function caja(b, brand, cfg = { mode: 'stamps' }) {
+  const points = cfg.mode === 'points';
   const body = `<header class="hero"><div class="logo"><img src="/api/${esc(b.slug)}/logo.png" alt="Logo de ${esc(b.name)}" onerror="this.parentNode.hidden=true"></div>
-<h1>${esc(b.name)}</h1><p class="sub">Caja · escanea el QR de la tarjeta del cliente para sumar su visita.</p></header>
+<h1>${esc(b.name)}</h1><p class="sub">Caja · escanea el QR de la tarjeta del cliente para ${points ? 'sumar puntos por su compra' : 'sumar su visita'}.</p></header>
 <label>Llave de caja</label><input id="k" type="password" autocomplete="off">
 <button id="scan">Escanear QR</button><div class="err" id="e"></div>
 <details style="margin-top:28px;color:var(--muted)"><summary style="cursor:pointer">Ingresar el código a mano</summary>
 <label>Código del cliente</label><input id="c" type="text" autocomplete="off" autocapitalize="off">
-<button class="alt" id="s">Sumar visita</button><button class="alt" id="r">Canjear premio</button><pre id="o" hidden></pre></details>
+${points ? `<label>Monto de la compra (RD$)</label><input id="amt" type="number" inputmode="decimal" min="0">
+<label>Premio a canjear</label><select id="rw">${cfg.points.rewards.map((r) => `<option value="${esc(r.id)}">${esc(r.name)} · ${r.cost} pts</option>`).join('')}</select>
+<button class="alt" id="s">Sumar puntos</button><button class="alt" id="r">Canjear premio</button>`
+  : '<button class="alt" id="s">Sumar visita</button><button class="alt" id="r">Canjear premio</button>'}<pre id="o" hidden></pre></details>
 <script src="/vendor/scanner.js"></script>`;
   const script = `
 const slug=${JSON.stringify(b.slug)};const $=(i)=>document.getElementById(i);
@@ -83,7 +89,7 @@ $('k').value=sessionStorage.getItem('k')||'';$('c').value=new URLSearchParams(lo
 const cfg={slug,headers:()=>({'x-api-key':$('k').value,'x-actor':'caja'})};
 $('scan').onclick=()=>{$('e').textContent='';if(!$('k').value){$('e').textContent='Escribe la llave de caja.';return}sessionStorage.setItem('k',$('k').value);FirmelyScan.open(cfg)};
 async function go(path){sessionStorage.setItem('k',$('k').value);$('e').textContent='';$('o').hidden=false;
-try{const r=await FirmelyScan.call(cfg,path,$('c').value.trim());const d=FirmelyScan.describe(r);$('o').textContent=path==='redeem'?'Premio canjeado. '+d.text:d.title+'. '+d.text}catch(e){$('o').textContent=e.message}}
+try{const extra=${points ? "path==='scan'?{amount:Number($('amt').value)}:{rewardId:$('rw').value}" : '{}'};const r=await FirmelyScan.call(cfg,path,$('c').value.trim(),extra);const d=FirmelyScan.describe(r);$('o').textContent=path==='redeem'?'Premio canjeado. '+d.text:d.title+'. '+d.text}catch(e){$('o').textContent=e.message}}
 $('s').onclick=()=>go('scan');$('r').onclick=()=>go('redeem');`;
   return shell(`${b.name} · Caja`, body, script, b.slug, brand);
 }

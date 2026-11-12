@@ -8,7 +8,8 @@
 .fs-msg{border-radius:12px;padding:12px 14px;font-size:15px;line-height:1.4;background:var(--alt,#222);border:1.5px solid transparent}
 .fs-msg b{display:block;font-size:17px;margin-bottom:2px}.fs-ok{border-color:#4ADE80;animation:fspop .35s ease-out}@keyframes fspop{0%{transform:scale(.92);opacity:.4}60%{transform:scale(1.03)}100%{transform:scale(1);opacity:1}}.fs-warn{border-color:#FACC15}.fs-err{border-color:#FF8A80}
 .fs-row{display:flex;gap:10px}.fs-row button{flex:1;height:46px;border-radius:12px;border:1px solid var(--fg,#fff);background:transparent;color:var(--fg,#fff);font-weight:700;font-size:15px;cursor:pointer;font-family:inherit;margin:0;width:auto}
-.fs-row button.p{background:var(--fg,#fff);color:var(--bg,#000)}`;
+.fs-row button.p{background:var(--fg,#fff);color:var(--bg,#000)}
+.fs-in{flex:1;height:46px;border-radius:12px;border:1px solid var(--fg,#fff);background:transparent;color:var(--fg,#fff);font-size:18px;padding:0 12px;font-family:inherit;min-width:0}`;
   // Sonidos con WebAudio (sin archivos). El contexto se crea al abrir el escáner, que es un toque del usuario.
   let actx;
   function unlockAudio() {
@@ -35,9 +36,9 @@
     s.onerror = () => ko(new Error('No se pudo cargar el lector de QR.')); document.head.appendChild(s);
   }));
 
-  async function call(cfg, path, code) {
+  async function call(cfg, path, code, extra) {
     const res = await fetch('/api/' + cfg.slug + '/' + path, {
-      method: 'POST', headers: { 'content-type': 'application/json', ...cfg.headers() }, body: JSON.stringify({ code }),
+      method: 'POST', headers: { 'content-type': 'application/json', ...cfg.headers() }, body: JSON.stringify({ code, ...(extra || {}) }),
     });
     const j = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(j.message || 'No se pudo completar la acción.');
@@ -45,11 +46,19 @@
   }
   function describe(r) {
     const c = r.customer || {}; const n = c.name || 'Cliente';
+    if (c.mode === 'points') {
+      const aff = (c.rewards || []).filter((x) => x.affordable);
+      if (r.status === 'visit') return { kind: 'ok', title: 'Puntos sumados', text: n + ': +' + r.added + ' pts (RD$' + r.amount + (r.doubleDay ? ', día especial' : '') + '). Total: ' + c.points + ' pts.' + (r.rewardUnlocked ? ' ¡Desbloqueó un premio!' : ''), rewards: aff, name: n, win: !!r.rewardUnlocked };
+      if (r.status === 'too_small') return { kind: 'warn', title: 'Compra muy pequeña', text: 'Se necesitan al menos RD$' + r.minAmount + ' para ganar 1 punto.', rewards: aff, name: n };
+      if (r.status === 'lookup') return { kind: 'ok', title: n, text: c.points + ' pts' + (aff.length ? '. Puede canjear un premio.' : '. Aún no alcanza premios.'), rewards: aff, name: n };
+    }
     if (r.status === 'visit') return { kind: 'ok', title: 'Visita registrada', text: n + ': ' + c.visits + ' de ' + c.required + (r.doubleDay && r.added > 1 ? ' (día especial: +' + r.added + ')' : '') + (r.rewardUnlocked ? '. ¡Ya tiene su premio!' : ''), redeem: !!r.rewardUnlocked, name: n };
     if (r.status === 'too_soon') return { kind: 'warn', title: 'Ya sumó una visita hace poco', text: n + ' podrá sumar otra desde ' + new Date(r.nextAllowedAt).toLocaleString('es-DO') + '.', name: n };
     if (r.status === 'free_available') return { kind: 'warn', title: 'Premio disponible', text: n + ' ya completó sus visitas. ¿Canjear ahora?', redeem: true, name: n };
     return { kind: 'ok', title: 'Listo', text: n, name: n };
   }
+  let infoP;
+  const getInfo = (cfg) => infoP || (infoP = fetch('/api/' + cfg.slug + '/info').then((r) => r.json()).catch(() => ({})));
 
   function open(cfg) {
     if (document.querySelector('.fs-ov')) return;
@@ -71,6 +80,9 @@
     async function handle(data) {
       paused = true; last = data; lastAt = Date.now(); clearActs();
       if (!data.startsWith(cfg.slug + '.')) { sound('err'); setMsg('err', 'QR no válido', 'Ese código no es de esta tarjeta.'); return resume(2500); }
+      let info = {};
+      try { info = await getInfo(cfg); } catch (e) { /* sin info: modo sellos */ }
+      if (info.mode === 'points') return handlePoints(data);
       try {
         const r = await call(cfg, 'scan', data); const d = describe(r);
         sound(d.redeem && d.kind === 'ok' ? 'win' : d.kind); setMsg(d.kind, d.title, d.text); if (cfg.onChange) cfg.onChange();
@@ -84,6 +96,35 @@
           btn('Ahora no', false, () => { clearActs(); resume(0); });
         } else resume(2800);
       } catch (e) { sound('err'); setMsg('err', 'No se pudo registrar', e.message); resume(3000); }
+    }
+    // Tarjeta de puntos: la caja escribe el monto de la compra; luego puede canjear un premio.
+    function handlePoints(data) {
+      setMsg('', 'Cliente leído', 'Escribe el monto de la compra en pesos (0 para solo canjear).');
+      const inp = document.createElement('input'); inp.className = 'fs-in'; inp.type = 'number'; inp.inputMode = 'decimal'; inp.min = '0'; inp.placeholder = 'Monto RD$';
+      acts.appendChild(inp); setTimeout(() => inp.focus(), 50);
+      const done = () => { clearActs(); resume(0); };
+      const rewardButtons = (d) => {
+        clearActs();
+        (d.rewards || []).forEach((rw) => btn('Canjear ' + rw.name + ' (' + rw.cost + ')', true, async () => {
+          clearActs();
+          try { const r = await call(cfg, 'redeem', data, { rewardId: rw.id }); sound('win'); setMsg('ok', 'Premio canjeado', d.name + ': ' + rw.name + '. Le quedan ' + r.customer.points + ' pts.'); if (cfg.onChange) cfg.onChange(); }
+          catch (e) { sound('err'); setMsg('err', 'No se pudo canjear', e.message); }
+          resume(3200);
+        }));
+        btn((d.rewards || []).length ? 'Ahora no' : 'Listo', false, done);
+        if (!(d.rewards || []).length) resume(2800);
+      };
+      btn('Sumar puntos', true, async () => {
+        const amount = Number(inp.value);
+        if (inp.value === '' || !(amount >= 0)) { sound('warn'); return setMsg('warn', 'Falta el monto', 'Escribe cuánto pagó el cliente.'); }
+        try {
+          const r = await call(cfg, 'scan', data, { amount }); const d = describe(r);
+          sound(d.win ? 'win' : d.kind); setMsg(d.kind, d.title, d.text); if (cfg.onChange) cfg.onChange();
+          rewardButtons(d);
+        } catch (e) { sound('err'); setMsg('err', 'No se pudo registrar', e.message); resume(3000); }
+      });
+      inp.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') acts.querySelector('button').click(); });
+      btn('Cancelar', false, done);
     }
     function tick() {
       if (closed) return; timer = setTimeout(tick, 150);

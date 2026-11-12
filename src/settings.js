@@ -11,6 +11,9 @@ const DEFAULTS = {
   birthday: { enabled: false, bonusVisits: 1, message: '' },
   referral: { enabled: false, referrerBonus: 1, newBonus: 0 },
   doubleDays: { enabled: false, days: [], multiplier: 2 },
+  // Tipo de tarjeta: 'stamps' (sellos por visita) o 'points' (puntos por consumo).
+  mode: 'stamps',
+  points: { pesosPerPoint: 100, rewards: [] }, // rewards: [{ id, name, cost }]
 };
 
 const isInt = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
@@ -47,7 +50,32 @@ function normalizeSettings(raw = {}) {
     days: Array.isArray(dd.days) ? [...new Set(dd.days.filter((x) => isInt(x, 0, 6)))].sort() : [],
     multiplier: isInt(dd.multiplier, 2, 3) ? dd.multiplier : 2,
   };
+  out.mode = r.mode === 'points' ? 'points' : 'stamps';
+  out.points = normalizePoints(r.points);
+  if (out.mode === 'points') { // los bonos de cumpleaños y referidos se cuentan en visitas: no aplican a puntos
+    out.birthday.enabled = false;
+    out.referral.enabled = false;
+  }
   return out;
+}
+
+/** Catálogo de premios por puntos: hasta 8, cada uno con id estable (r1, r2…) y costo entero. */
+function normalizePoints(raw) {
+  const p = raw && typeof raw === 'object' ? raw : {};
+  const per = Number(p.pesosPerPoint);
+  const rewards = [];
+  const used = new Set();
+  for (const x of Array.isArray(p.rewards) ? p.rewards.slice(0, 8) : []) {
+    const name = text(x && x.name, 40);
+    const cost = Number(x && x.cost);
+    if (!name || !Number.isInteger(cost) || cost < 1 || cost > 100000) continue;
+    let id = /^[a-z0-9]{1,8}$/.test(String(x.id || '')) && !used.has(x.id) ? x.id : null;
+    for (let i = 1; !id; i++) if (!used.has(`r${i}`)) id = `r${i}`;
+    used.add(id);
+    rewards.push({ id, name, cost });
+  }
+  rewards.sort((a, b) => a.cost - b.cost);
+  return { pesosPerPoint: Number.isInteger(per) && per >= 1 && per <= 100000 ? per : 100, rewards };
 }
 
 /** Día de la semana (0 = domingo), mes, día, año y hora en la zona horaria del negocio. */
@@ -86,4 +114,4 @@ function parseBirthday(v) {
   return `${String(mo).padStart(2, '0')}-${String(da).padStart(2, '0')}`;
 }
 
-module.exports = { DEFAULTS, normalizeSettings, localParts, parseCoords, parseBirthday };
+module.exports = { DEFAULTS, normalizeSettings, normalizePoints, localParts, parseCoords, parseBirthday };

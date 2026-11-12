@@ -96,7 +96,7 @@ function createService({ db, secret, now = () => new Date(), hooks = {} }) {
 
   // ---------- clientes ----------
   function publicCustomer(b, c) {
-    return {
+    const out = {
       id: c.id,
       name: c.name,
       phone: formatPhone(c.phone_norm),
@@ -106,7 +106,17 @@ function createService({ db, secret, now = () => new Date(), hooks = {} }) {
       rewardAvailable: c.visits >= b.visits_required,
       rewardsRedeemed: c.rewards_redeemed,
       lastVisitAt: c.last_visit_at,
+      mode: 'stamps',
     };
+    const cfg = getSettings(b);
+    if (cfg.mode === 'points') {
+      out.mode = 'points';
+      out.points = c.visits;
+      out.rewards = cfg.points.rewards.map((r) => ({ ...r, affordable: c.visits >= r.cost }));
+      const next = cfg.points.rewards.find((r) => r.cost > c.visits);
+      out.nextReward = next ? { ...next, missing: next.cost - c.visits } : null;
+    }
+    return out;
   }
 
   function loadCustomer(b, id) {
@@ -188,8 +198,35 @@ function createService({ db, secret, now = () => new Date(), hooks = {} }) {
   }
 
   // ---------- visitas ----------
-  const scan = (b, code, actor) => db.transaction(() => {
+  function scanPoints(b, c, cfg, amount, actor) {
+    if (amount !== undefined && amount !== null && amount !== '' && Number(amount) === 0) {
+      return { status: 'lookup', customer: publicCustomer(b, c) }; // solo consultar saldo (para canjear sin compra)
+    }
+    const amt = Number(amount);
+    if (!Number.isFinite(amt) || amt <= 0 || amt > 10000000) {
+      throw new HttpError(400, 'bad_amount', 'Escribe el monto de la compra en pesos.');
+    }
+    const today = localParts(now(), cfg.timezone);
+    const double = cfg.doubleDays.enabled && cfg.doubleDays.days.includes(today.weekday);
+    const base = Math.floor(amt / cfg.points.pesosPerPoint);
+    if (base < 1) {
+      return { status: 'too_small', minAmount: cfg.points.pesosPerPoint, customer: publicCustomer(b, c) };
+    }
+    const add = base * (double ? cfg.doubleDays.multiplier : 1);
+    db.prepare('UPDATE customers SET visits = visits + ?, last_visit_at = ? WHERE id = ?').run(add, iso(), c.id);
+    const updated = loadCustomer(b, c.id);
+    logEvent(b, c.id, 'visit', { visits: updated.visits, added: add, amount: amt, double }, actor);
+    const pub = publicCustomer(b, updated);
+    hook('customerChanged', { business: b, customer: pub, reason: 'visit' });
+    const before = cfg.points.rewards.filter((r) => c.visits >= r.cost).length;
+    const unlocked = pub.rewards.filter((r) => r.affordable).length > before;
+    return { status: 'visit', rewardUnlocked: unlocked, added: add, doubleDay: double, amount: amt, customer: pub };
+  }
+
+  const scan = (b, code, actor, amount) => db.transaction(() => {
     const c = loadCustomer(b, parseCode(b, code));
+    const pcfg = getSettings(b);
+    if (pcfg.mode === 'points') return scanPoints(b, c, pcfg, amount, actor);
     if (c.visits >= b.visits_required) {
       return { status: 'free_available', customer: publicCustomer(b, c) };
     }
@@ -229,8 +266,24 @@ function createService({ db, secret, now = () => new Date(), hooks = {} }) {
     return { status: 'visit', rewardUnlocked: pub.rewardAvailable, added: updated.visits - c.visits, doubleDay: double, customer: pub };
   })();
 
-  const redeem = (b, code, actor) => db.transaction(() => {
+  const redeemPoints = (b, c, cfg, rewardId, actor) => {
+    const reward = cfg.points.rewards.find((r) => r.id === rewardId);
+    if (!reward) throw new HttpError(400, 'bad_reward', 'Elige el premio que va a canjear.');
+    if (c.visits < reward.cost) {
+      throw new HttpError(409, 'not_eligible', `Le faltan ${reward.cost - c.visits} puntos para ${reward.name}.`);
+    }
+    db.prepare('UPDATE customers SET visits = visits - ?, rewards_redeemed = rewards_redeemed + 1 WHERE id = ?').run(reward.cost, c.id);
+    const updated = loadCustomer(b, c.id);
+    logEvent(b, c.id, 'redeem', { reward: reward.name, cost: reward.cost, visits: updated.visits }, actor);
+    const pub = publicCustomer(b, updated);
+    hook('customerChanged', { business: b, customer: pub, reason: 'redeem' });
+    return { status: 'redeemed', reward, customer: pub };
+  };
+
+  const redeem = (b, code, actor, rewardId) => db.transaction(() => {
     const c = loadCustomer(b, parseCode(b, code));
+    const pcfg = getSettings(b);
+    if (pcfg.mode === 'points') return redeemPoints(b, c, pcfg, rewardId, actor);
     if (c.visits < b.visits_required) {
       throw new HttpError(409, 'not_eligible', `Aún no completa ${b.visits_required} visitas.`);
     }
@@ -258,8 +311,10 @@ function createService({ db, secret, now = () => new Date(), hooks = {} }) {
     }
     if (patch.visits !== undefined) {
       const v = patch.visits;
-      if (!Number.isInteger(v) || v < 0 || v > b.visits_required) {
-        throw new HttpError(400, 'bad_visits', `Las visitas deben estar entre 0 y ${b.visits_required}.`);
+      const points = getSettings(b).mode === 'points';
+      const max = points ? 10000000 : b.visits_required;
+      if (!Number.isInteger(v) || v < 0 || v > max) {
+        throw new HttpError(400, 'bad_visits', points ? `Los puntos deben estar entre 0 y ${max}.` : `Las visitas deben estar entre 0 y ${max}.`);
       }
       next.visits = v;
     }
@@ -555,6 +610,7 @@ function createService({ db, secret, now = () => new Date(), hooks = {} }) {
     slug: b.slug, name: b.name, reward: b.reward, visitsRequired: b.visits_required,
     minHoursBetweenVisits: b.min_hours_between_visits, maxNoticesPerMonth: b.max_notices_per_month,
     brand: brandOf(b), createdAt: b.created_at, ...stats(b),
+    mode: getSettings(b).mode, points: getSettings(b).points,
   });
   const listBusinesses = () => db.prepare('SELECT * FROM businesses ORDER BY created_at DESC, id DESC').all().map(publicBusiness);
 
@@ -576,16 +632,44 @@ function createService({ db, secret, now = () => new Date(), hooks = {} }) {
     if (patch.visitsRequired !== undefined) next.visits = int(patch.visitsRequired, 2, 24, 'Las visitas deben estar entre 2 y 24.');
     if (patch.minHoursBetweenVisits !== undefined) next.minHours = int(patch.minHoursBetweenVisits, 0, 720, 'Horas entre visitas: 0 a 720.');
     if (patch.maxNoticesPerMonth !== undefined) next.maxNotices = int(patch.maxNoticesPerMonth, 0, 20, 'Avisos por mes: 0 a 20.');
+    // Tipo de tarjeta: sellos o puntos. En puntos, "visitas requeridas" es el premio más barato.
+    const cur = getSettings(b);
+    let cfgNext = cur;
+    if (patch.mode !== undefined || patch.points !== undefined) {
+      if (patch.mode !== undefined && !['stamps', 'points'].includes(patch.mode)) throw new HttpError(400, 'bad_mode', 'Tipo de tarjeta no válido.');
+      if (patch.points !== undefined) {
+        const p = patch.points || {};
+        if (p.pesosPerPoint !== undefined) int(p.pesosPerPoint, 1, 100000, 'Pesos por punto: 1 a 100,000.');
+        if (p.rewards !== undefined) {
+          if (!Array.isArray(p.rewards) || p.rewards.length > 8) throw new HttpError(400, 'bad_rewards', 'Máximo 8 premios.');
+          for (const r of p.rewards) {
+            if (!r || String(r.name || '').trim().length < 2) throw new HttpError(400, 'bad_rewards', 'Cada premio necesita un nombre.');
+            int(Number(r.cost), 1, 100000, 'El costo de cada premio va de 1 a 100,000 puntos.');
+          }
+        }
+      }
+      cfgNext = normalizeSettings({ ...cur, ...(patch.mode !== undefined ? { mode: patch.mode } : {}),
+        points: patch.points !== undefined ? { ...cur.points, ...patch.points } : cur.points });
+      if (cfgNext.mode === 'points') {
+        if (!cfgNext.points.rewards.length) throw new HttpError(400, 'bad_rewards', 'Agrega al menos un premio por puntos.');
+        next.visits = cfgNext.points.rewards[0].cost;
+        next.reward = cfgNext.points.rewards[0].name;
+      }
+    }
+    const modeChanged = cfgNext.mode !== cur.mode;
     const brand = { ...brandOf(b) };
     for (const [k, v] of Object.entries(patch.brand || {})) {
       if (v === null || v === '') delete brand[k]; else brand[k] = v;
     }
     const brandJson = JSON.stringify(normalizeBrand(brand));
-    const cosmetic = brandJson !== b.brand_json || next.reward !== b.reward || next.visits !== b.visits_required || next.name !== b.name;
+    const cosmetic = brandJson !== b.brand_json || next.reward !== b.reward || next.visits !== b.visits_required || next.name !== b.name
+      || JSON.stringify(cfgNext) !== JSON.stringify(cur);
     db.prepare(`UPDATE businesses SET name = ?, reward = ?, visits_required = ?, min_hours_between_visits = ?,
       max_notices_per_month = ?, brand_json = ? WHERE id = ?`)
       .run(next.name, next.reward, next.visits, next.minHours, next.maxNotices, brandJson, b.id);
-    if (next.visits < b.visits_required) db.prepare('UPDATE customers SET visits = MIN(visits, ?) WHERE business_id = ?').run(next.visits, b.id);
+    if (cfgNext !== cur) db.prepare('UPDATE businesses SET settings_json = ? WHERE id = ?').run(JSON.stringify(cfgNext), b.id);
+    if (modeChanged) db.prepare('UPDATE customers SET visits = 0 WHERE business_id = ?').run(b.id); // sellos y puntos no se mezclan
+    else if (cfgNext.mode === 'stamps' && next.visits < b.visits_required) db.prepare('UPDATE customers SET visits = MIN(visits, ?) WHERE business_id = ?').run(next.visits, b.id);
     const fresh = getBusiness(slug);
     if (cosmetic) refreshPasses(fresh); // los pases ya instalados se refrescan con el nuevo diseño
     return publicBusiness(fresh);

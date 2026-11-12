@@ -95,3 +95,10 @@ Crear negocio, editar diseño/reglas/logo, regenerar llaves (se muestran una sol
   - `ADMIN_HOST` — opcional. Si se define (p. ej. `admin.firmely.io`), el panel solo responde en ese dominio y el resto de rutas se bloquean allí.
   - `LOYALTY_URL` — opcional. URL pública del servicio de fidelidad para armar los enlaces cuando el panel vive en otro dominio.
 - API: `/firmely/api/*` con cabecera `x-firmely-key`.
+
+## Tarjeta de puntos (además de sellos)
+Cada negocio elige su tipo de tarjeta desde el panel de Firmely ("Tipo de tarjeta"):
+- **Sellos**: el cliente junta visitas (como antes).
+- **Puntos**: la caja escribe el monto de la compra; el cliente gana 1 punto por cada `pesosPerPoint` pesos (se multiplica en días dobles) y canjea cualquiera de los premios del catálogo (hasta 8, cada uno con su costo en puntos).
+
+API de caja en modo puntos: `POST /api/:slug/scan {code, amount}` (amount 0 = solo consultar saldo) y `POST /api/:slug/redeem {code, rewardId}`. Los pases de Apple/Google muestran el saldo y la barra hacia el siguiente premio. Cambiar de tipo reinicia los saldos a 0; los bonos de cumpleaños y referidos solo aplican a sellos.

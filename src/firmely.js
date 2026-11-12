@@ -30,13 +30,13 @@ function createFirmelyRouter(svc, { key, loyaltyUrl = '', apple = null } = {}) {
   r.get('/businesses', (_req, res) => res.json({ businesses: svc.listBusinesses() }));
 
   r.post('/businesses', wrap(async (req, res) => {
-    const { slug, name, reward, visitsRequired, minHoursBetweenVisits, maxNoticesPerMonth, brand, logo } = req.body || {};
+    const { slug, name, reward, visitsRequired, minHoursBetweenVisits, maxNoticesPerMonth, brand, logo, mode, points } = req.body || {};
     const n = String(name || '').trim();
     if (n.length < 2 || n.length > 40) throw new HttpError(400, 'bad_name', 'El nombre debe tener entre 2 y 40 caracteres.');
     const { business, keys } = svc.createBusiness({ slug, name: n, reward, visitsRequired, minHoursBetweenVisits, maxNoticesPerMonth, brand });
     try {
       // createBusiness no valida rangos finos: updateBusiness sí.
-      svc.updateBusiness(business.slug, { reward, visitsRequired, minHoursBetweenVisits, maxNoticesPerMonth });
+      svc.updateBusiness(business.slug, { reward, visitsRequired, minHoursBetweenVisits, maxNoticesPerMonth, mode, points });
       if (logo) await logos.saveFromDataUrl(business.slug, logo, svc.brandOf(business).bg);
     } catch (e) {
       svc.deleteBusiness(business.slug, 'firmely');

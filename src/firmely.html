@@ -130,6 +130,17 @@ async function api(path, opts = {}) {
   if (!r.ok) throw new Error(j.message || 'Error ' + r.status);
   return j;
 }
+async function googleCheck(slug, btn, box) {
+  btn.disabled = true; box.replaceChildren(h('div', { class: 'muted small' }, 'Consultando a Google…'));
+  try {
+    const r = await fetch('/firmely/api/businesses/' + slug + '/google', { headers: { 'x-firmely-key': KEY } });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.message || 'Error ' + r.status);
+    box.replaceChildren(h('div', { class: 'muted small' }, 'Emisor ' + j.issuerId + ' · ' + j.serviceAccount),
+      ...j.steps.map((s) => h('div', { style: 'margin-top:8px' }, h('b', {}, (s.ok ? '✅ ' : '❌ ') + s.name), h('div', { class: 'muted small' }, s.detail))));
+  } catch (e) { box.replaceChildren(h('div', { class: 'err' }, e.message)); }
+  btn.disabled = false;
+}
 async function download(path, name, btn) {
   const old = btn && btn.textContent; if (btn) { btn.disabled = true; btn.textContent = 'Generando…'; }
   try {
@@ -417,6 +428,7 @@ function renderLoyalty(b) {
   const f = bizForm(b, 'edit');
   const err = h('div', { class: 'err' }), okm = h('div', { class: 'ok' });
   const save = h('button', { class: 'btn' }, 'Guardar cambios');
+  const gout = h('div', { style: 'margin-top:10px' });
   const strip = h('img', { class: 'strip', alt: '', src: `/api/${b.slug}/stamp/${Math.floor(b.visitsRequired / 2)}.png?scale=2&v=${Date.now() % 1e6}` });
   save.onclick = async () => {
     err.textContent = ''; okm.textContent = ''; save.disabled = true;
@@ -460,6 +472,9 @@ function renderLoyalty(b) {
         h('div', { class: 'two' },
           h('button', { class: 'btn', onclick: (e) => download(`/businesses/${b.slug}/package.zip`, `Firmely-${b.slug}.zip`, e.currentTarget) }, 'Descargar paquete del negocio'),
           h('button', { class: 'btn alt', onclick: (e) => download(`/businesses/${b.slug}/sample.pkpass`, `${b.slug}-ejemplo.pkpass`, e.currentTarget) }, 'Tarjeta de ejemplo (.pkpass)'))),
+      h('div', { class: 'card' }, h('h2', {}, 'Google Wallet'),
+        h('div', { class: 'muted small' }, 'Comprueba la conexión con Google: llave, estado de la clase y si la tarjeta del último cliente existe.'),
+        h('button', { class: 'btn alt', onclick: (e) => googleCheck(b.slug, e.currentTarget, gout) }, 'Probar Google Wallet'), gout),
       h('div', { class: 'card' }, h('h2', {}, 'Llaves de acceso'), keysCard()),
       h('div', { class: 'card' }, h('h2', {}, 'Apariencia y reglas'), f.el,
         h('div', {}, h('label', {}, 'Así se ve la tarjeta guardada (sellos a la mitad)'), strip), err, okm, save),

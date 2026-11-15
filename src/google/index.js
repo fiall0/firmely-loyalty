@@ -99,7 +99,10 @@ function createGoogle({ db, svc, config, fetchFn = fetch, now = () => Date.now()
     if (ensured.has(b.slug)) return;
     const body = classBody(b);
     let r = await call('POST', '/loyaltyClass', body);
-    if (r.status === 409) r = await call('PATCH', `/loyaltyClass/${encodeURIComponent(body.id)}`, body);
+    if (r.status === 409) { // ya existe: se actualiza SIN tocar reviewStatus, para no reabrir la revisión de una clase aprobada
+      const { reviewStatus, ...rest } = body;
+      r = await call('PATCH', `/loyaltyClass/${encodeURIComponent(body.id)}`, rest);
+    }
     if (!r.ok) throw new Error(`Google clase ${r.status}: ${r.json.error?.message || ''}`);
     ensured.add(b.slug);
   }
@@ -123,12 +126,29 @@ function createGoogle({ db, svc, config, fetchFn = fetch, now = () => Date.now()
     if (!row) return;
     const body = objectBody(b, row);
     const r = await call('PATCH', `/loyaltyObject/${encodeURIComponent(body.id)}`, body);
-    if (!r.ok && r.status !== 404) console.error(`[google] actualizar ${r.status}: ${r.json.error?.message || ''}`);
+    if (!r.ok) console.error(`[google] actualizar ${body.id} → ${r.status}: ${r.json.error?.message || ''}${r.status === 404 ? ' (la tarjeta no existe en Google con este ID: se agregó con otro emisor o aún no se guardó)' : ''}`);
   }
   async function message(b, customerId, header, bodyText) {
     const r = await call('POST', `/loyaltyObject/${encodeURIComponent(objectId(b, customerId))}/addMessage`,
       { message: { header, body: bodyText, messageType: 'TEXT_AND_NOTIFY' } });
-    if (!r.ok && r.status !== 404) console.error(`[google] aviso ${r.status}: ${r.json.error?.message || ''}`);
+    if (!r.ok) console.error(`[google] aviso ${r.status}: ${r.json.error?.message || ''}`);
+  }
+
+  /** Diagnóstico para el panel: ¿hay token?, ¿cómo está la clase?, ¿existe la tarjeta del último cliente? */
+  async function diagnose(b) {
+    const out = { issuerId, serviceAccount: saEmail, publicUrl: base, steps: [] };
+    const step = (name, ok, detail) => out.steps.push({ name, ok, detail });
+    try { await accessToken(); step('Llave de la cuenta de servicio', true, 'Google aceptó la llave.'); }
+    catch (e) { step('Llave de la cuenta de servicio', false, e.message); return out; }
+    const c = await call('GET', `/loyaltyClass/${encodeURIComponent(classId(b))}`);
+    if (c.ok) step('Clase del negocio', true, `Estado de revisión: ${c.json.reviewStatus || 'sin dato'}.${c.json.reviewStatus === 'APPROVED' ? '' : ' Mientras no esté APPROVED, solo los usuarios de prueba pueden usarla y Google no manda avisos.'}`);
+    else step('Clase del negocio', false, c.status === 404 ? 'La clase no existe todavía: se crea la primera vez que alguien toca "Agregar a Google Wallet".' : `${c.status}: ${c.json.error?.message || ''}`);
+    const row = db.prepare('SELECT id FROM customers WHERE business_id = ? ORDER BY created_at DESC LIMIT 1').get(b.id);
+    if (!row) { step('Tarjeta del último cliente', true, 'Aún no hay clientes.'); return out; }
+    const o = await call('GET', `/loyaltyObject/${encodeURIComponent(objectId(b, row.id))}`);
+    if (o.ok) step('Tarjeta del último cliente', true, `Existe en Google (estado ${o.json.state}).`);
+    else step('Tarjeta del último cliente', false, o.status === 404 ? 'No existe en Google: la tarjeta nunca se guardó con este ID de emisor. Bórrala del teléfono y agrégala de nuevo.' : `${o.status}: ${o.json.error?.message || ''}`);
+    return out;
   }
 
   const swallow = (p) => p.catch((e) => console.error('[google]', e.message));
@@ -154,7 +174,7 @@ function createGoogle({ db, svc, config, fetchFn = fetch, now = () => Date.now()
     })()),
   };
 
-  return { saveUrl, hooks, classBody, objectBody, objectId, classId };
+  return { saveUrl, hooks, diagnose, classBody, objectBody, objectId, classId };
 }
 
 /** Configuración desde variables de entorno; null si Google Wallet no está configurado. */

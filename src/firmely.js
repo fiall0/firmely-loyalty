@@ -12,7 +12,7 @@ const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 const sha = (s) => crypto.createHash('sha256').update(String(s)).digest();
 const asHttp = (e) => (e && e.status && !(e instanceof HttpError) ? new HttpError(e.status, e.code || 'error', e.message) : e);
 
-function createFirmelyRouter(svc, { key, loyaltyUrl = '', apple = null } = {}) {
+function createFirmelyRouter(svc, { key, loyaltyUrl = '', apple = null, google = null } = {}) {
   const r = express.Router();
   r.use(express.json({ limit: '5mb' }));
   const want = key ? sha(key) : null;
@@ -72,6 +72,11 @@ function createFirmelyRouter(svc, { key, loyaltyUrl = '', apple = null } = {}) {
     if (!apple) throw new HttpError(503, 'apple_off', 'Apple Wallet no está configurado en este servidor.');
     return svc.withSampleCustomer(slug, (id, b) => apple.buildPass(b, id));
   };
+
+  r.get('/businesses/:slug/google', wrap(async (req, res) => {
+    if (!google) throw new HttpError(503, 'google_off', 'Google Wallet no está activo en el servidor: revisa GOOGLE_ISSUER_ID, GOOGLE_SA_JSON y PUBLIC_URL en Railway.');
+    res.json(await google.diagnose(svc.getBusiness(req.params.slug)));
+  }));
 
   r.get('/businesses/:slug/sample.pkpass', wrap(async (req, res) => {
     const buf = await samplePass(req.params.slug);

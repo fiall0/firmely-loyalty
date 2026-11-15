@@ -75,7 +75,7 @@ function createFirmelyRouter(svc, { key, loyaltyUrl = '', apple = null, google =
 
   r.get('/businesses/:slug/google', wrap(async (req, res) => {
     if (!google) throw new HttpError(503, 'google_off', 'Google Wallet no está activo en el servidor: revisa GOOGLE_ISSUER_ID, GOOGLE_SA_JSON y PUBLIC_URL en Railway.');
-    res.json(await google.diagnose(svc.getBusiness(req.params.slug)));
+    res.json(await google.diagnose(svc.getBusiness(req.params.slug), { notify: req.query.notify === '1' }));
   }));
 
   r.get('/businesses/:slug/sample.pkpass', wrap(async (req, res) => {

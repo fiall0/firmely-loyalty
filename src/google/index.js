@@ -135,7 +135,7 @@ function createGoogle({ db, svc, config, fetchFn = fetch, now = () => Date.now()
   }
 
   /** Diagnóstico para el panel: ¿hay token?, ¿cómo está la clase?, ¿existe la tarjeta del último cliente? */
-  async function diagnose(b) {
+  async function diagnose(b, { notify = false } = {}) {
     const out = { issuerId, serviceAccount: saEmail, publicUrl: base, steps: [] };
     const step = (name, ok, detail) => out.steps.push({ name, ok, detail });
     try { await accessToken(); step('Llave de la cuenta de servicio', true, 'Google aceptó la llave.'); }
@@ -146,8 +146,20 @@ function createGoogle({ db, svc, config, fetchFn = fetch, now = () => Date.now()
     const row = db.prepare('SELECT id FROM customers WHERE business_id = ? ORDER BY created_at DESC LIMIT 1').get(b.id);
     if (!row) { step('Tarjeta del último cliente', true, 'Aún no hay clientes.'); return out; }
     const o = await call('GET', `/loyaltyObject/${encodeURIComponent(objectId(b, row.id))}`);
-    if (o.ok) step('Tarjeta del último cliente', true, `Existe en Google (estado ${o.json.state}).`);
-    else step('Tarjeta del último cliente', false, o.status === 404 ? 'No existe en Google: la tarjeta nunca se guardó con este ID de emisor. Bórrala del teléfono y agrégala de nuevo.' : `${o.status}: ${o.json.error?.message || ''}`);
+    if (o.ok) {
+      const shown = o.json.loyaltyPoints && o.json.loyaltyPoints.balance;
+      step('Tarjeta del último cliente', true, `Existe en Google (estado ${o.json.state}). Saldo que muestra: ${shown ? (shown.int ?? shown.string) : 'sin dato'}.`);
+      const body = objectBody(b, loadRow(b, row.id));
+      const u = await call('PATCH', `/loyaltyObject/${encodeURIComponent(body.id)}`, body);
+      if (u.ok) {
+        const now2 = u.json.loyaltyPoints && u.json.loyaltyPoints.balance;
+        step('Actualizar la tarjeta', true, `Google aceptó la actualización. Saldo ahora: ${now2 ? (now2.int ?? now2.string) : 'sin dato'}.`);
+      } else step('Actualizar la tarjeta', false, `${u.status}: ${u.json.error?.message || ''}`);
+      if (notify) {
+        const m = await call('POST', `/loyaltyObject/${encodeURIComponent(body.id)}/addMessage`, { message: { header: b.name, body: 'Prueba de aviso de Firmely.', messageType: 'TEXT_AND_NOTIFY' } });
+        step('Aviso de prueba', m.ok, m.ok ? 'Google aceptó el aviso. Puede tardar un poco en llegar al teléfono.' : `${m.status}: ${m.json.error?.message || ''}`);
+      }
+    } else step('Tarjeta del último cliente', false, o.status === 404 ? 'No existe en Google: la tarjeta nunca se guardó con este ID de emisor. Bórrala del teléfono y agrégala de nuevo.' : `${o.status}: ${o.json.error?.message || ''}`);
     return out;
   }
 

@@ -130,7 +130,7 @@ async function api(path, opts = {}) {
   if (!r.ok) throw new Error(j.message || 'Error ' + r.status);
   return j;
 }
-async function googleCheck(slug, btn, box) {
+async function googleCheck(slug, btn, box, notify) {
   btn.disabled = true; box.replaceChildren(h('div', { class: 'muted small' }, 'Consultando a Google…'));
   try {
     const r = await fetch('/firmely/api/businesses/' + slug + '/google', { headers: { 'x-firmely-key': KEY } });
@@ -474,7 +474,9 @@ function renderLoyalty(b) {
           h('button', { class: 'btn alt', onclick: (e) => download(`/businesses/${b.slug}/sample.pkpass`, `${b.slug}-ejemplo.pkpass`, e.currentTarget) }, 'Tarjeta de ejemplo (.pkpass)'))),
       h('div', { class: 'card' }, h('h2', {}, 'Google Wallet'),
         h('div', { class: 'muted small' }, 'Comprueba la conexión con Google: llave, estado de la clase y si la tarjeta del último cliente existe.'),
-        h('button', { class: 'btn alt', onclick: (e) => googleCheck(b.slug, e.currentTarget, gout) }, 'Probar Google Wallet'), gout),
+        h('div', { class: 'two' },
+          h('button', { class: 'btn alt', onclick: (e) => googleCheck(b.slug, e.currentTarget, gout) }, 'Probar Google Wallet'),
+          h('button', { class: 'btn alt', onclick: (e) => googleCheck(b.slug, e.currentTarget, gout, true) }, 'Probar + enviar aviso')), gout),
       h('div', { class: 'card' }, h('h2', {}, 'Llaves de acceso'), keysCard()),
       h('div', { class: 'card' }, h('h2', {}, 'Apariencia y reglas'), f.el,
         h('div', {}, h('label', {}, 'Así se ve la tarjeta guardada (sellos a la mitad)'), strip), err, okm, save),

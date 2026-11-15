@@ -3,7 +3,6 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const http = require('http');
 const sharp = require('sharp');
 const { unzipSync } = require('fflate');
 const { open } = require('../src/db');
@@ -32,9 +31,8 @@ test('panel apagado sin llave (503) y con llave incorrecta (401)', async () => {
     assert.equal((await on.call('GET', '/firmely/api/businesses', null, 'mala')).status, 401);
     assert.equal((await on.call('GET', '/firmely/api/businesses', null, null)).status, 401);
     assert.equal((await on.call('GET', '/firmely/api/businesses')).status, 200);
-    const page = await fetch(on.url + '/firmely');
-    assert.equal(page.status, 200);
-    assert.match(await page.text(), /<title>Firmely · Panel<\/title>/);
+    // La pantalla del panel vive en firmely-admin; aquí solo queda la API.
+    assert.equal((await fetch(on.url + '/firmely')).status, 404);
   } finally { on.server.close(); }
 });
 
@@ -104,22 +102,15 @@ test('crear, listar, editar, llaves, logo y borrar', async () => {
   } finally { server.close(); }
 });
 
-test('ADMIN_HOST: el panel solo vive en su dominio', async () => {
-  const { server } = boot({ adminHost: 'admin.firmely.io' });
-  const port = server.address().port;
-  // fetch no permite cambiar Host: usamos http.request.
-  const get = (p, host, headers = {}) => new Promise((resolve, reject) => {
-    http.get({ port, path: p, headers: { host, ...headers } }, (res) => {
-      let d = ''; res.on('data', (c) => { d += c; }); res.on('end', () => resolve({ status: res.statusCode, body: d }));
-    }).on('error', reject);
-  });
+test('sin la pantalla del panel, las rutas públicas siguen igual', async () => {
+  const { server, url, call } = boot();
   try {
-    let r = await get('/', 'admin.firmely.io');
-    assert.equal(r.status, 200);
-    assert.match(r.body, /<title>Firmely · Panel<\/title>/);
-    assert.equal((await get('/firmely/api/businesses', 'admin.firmely.io', { 'x-firmely-key': KEY })).status, 200);
-    assert.equal((await get('/health', 'admin.firmely.io')).status, 404);
-    assert.equal((await get('/firmely', 'loyalty.firmely.io')).status, 404);
-    assert.notEqual((await get('/health', 'loyalty.firmely.io')).status, 404);
+    assert.equal((await fetch(url + '/firmely')).status, 404);
+    assert.equal((await fetch(url + '/firmely/assets/logo-white.png')).status, 404);
+    assert.equal((await fetch(url + '/health')).status, 200);
+    assert.equal((await call('POST', '/firmely/api/businesses', { slug: 'prueba', name: 'Prueba', reward: 'Café gratis' })).status, 201);
+    for (const p of ['/r/prueba', '/caja/prueba', '/admin/prueba', '/api/prueba/info', '/api/prueba/logo.png', '/api/prueba/qr.png']) {
+      assert.equal((await fetch(url + p)).status, 200, p);
+    }
   } finally { server.close(); }
 });

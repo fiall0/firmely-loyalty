@@ -7,27 +7,12 @@ const logos = require('./logos');
 const { createFirmelyRouter } = require('./firmely');
 const { parseCoords } = require('./settings');
 
-function createApp(svc, { apple, google, firmelyKey, adminHost = process.env.ADMIN_HOST, loyaltyUrl = process.env.LOYALTY_URL || '' } = {}) {
+function createApp(svc, { apple, google, firmelyKey, loyaltyUrl = process.env.LOYALTY_URL || '' } = {}) {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', 1); // detrás del proxy HTTPS de la nube, req.ip es la IP real
-  // Panel general de Firmely, con su propio lector de JSON (límite mayor para los logos).
-  // Con ADMIN_HOST definido: en ese host "/" abre el panel y solo se sirve lo que el panel necesita;
-  // en los demás hosts el panel no existe. Sin ADMIN_HOST, el panel vive en /firmely de cualquier host.
-  const panelFile = require('path').join(__dirname, 'firmely.html');
-  const ah = String(adminHost || '').toLowerCase();
-  app.use((req, res, next) => {
-    if (!ah) return next();
-    const onAdmin = req.hostname.toLowerCase() === ah;
-    if (!onAdmin) return /^\/firmely(\/|$)/.test(req.path) ? res.status(404).json({ error: 'not_found' }) : next();
-    if (req.path === '/' || req.path === '/firmely') return res.sendFile(panelFile);
-    if (/^\/firmely\/(api|assets)(\/|$)/.test(req.path)) return next();
-    if (req.method === 'GET' && /^\/api\/[a-z0-9-]+\/(logo\.png|poster\.png|qr\.png|qr\.svg|stamp\/\d+\.png)$/.test(req.path)) return next();
-    return res.status(404).json({ error: 'not_found' });
-  });
-  app.use('/firmely/assets', express.static(require('path').join(__dirname, 'brand'), { maxAge: '1d', index: false }));
+  // API del panel general de Firmely (vive aparte, en firmely-admin / admin.firmely.io). Lleva su propio lector de JSON (logos).
   app.use('/firmely/api', createFirmelyRouter(svc, { key: firmelyKey, loyaltyUrl, apple, google }));
-  app.get('/firmely', (_req, res) => res.sendFile(panelFile));
   app.use(express.json({ limit: '10kb' }));
 
   if (apple) app.use('/apple', apple.router);

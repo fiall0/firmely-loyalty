@@ -141,7 +141,7 @@ function createGoogle({ db, svc, config, fetchFn = fetch, now = () => Date.now()
     try { await accessToken(); step('Llave de la cuenta de servicio', true, 'Google aceptó la llave.'); }
     catch (e) { step('Llave de la cuenta de servicio', false, e.message); return out; }
     const c = await call('GET', `/loyaltyClass/${encodeURIComponent(classId(b))}`);
-    if (c.ok) step('Clase del negocio', true, `Estado de revisión: ${c.json.reviewStatus || 'sin dato'}.${c.json.reviewStatus === 'APPROVED' ? '' : ' Mientras no esté APPROVED, solo los usuarios de prueba pueden usarla y Google no manda avisos.'}`);
+    if (c.ok) step('Clase del negocio', true, `Estado de revisión: ${String(c.json.reviewStatus || 'sin dato').toUpperCase()}.${String(c.json.reviewStatus).toUpperCase() === 'APPROVED' ? '' : ' Mientras no esté APPROVED, solo los usuarios de prueba pueden usarla y Google no manda avisos.'}`);
     else step('Clase del negocio', false, c.status === 404 ? 'La clase no existe todavía: se crea la primera vez que alguien toca "Agregar a Google Wallet".' : `${c.status}: ${c.json.error?.message || ''}`);
     const row = db.prepare('SELECT id FROM customers WHERE business_id = ? ORDER BY created_at DESC LIMIT 1').get(b.id);
     if (!row) { step('Tarjeta del último cliente', true, 'Aún no hay clientes.'); return out; }
